@@ -11,7 +11,7 @@ ui_elements::struct{
     a:u8
 }
 
-ui_bottom_bar:ui_elements = {h= 50,r = 85,g = 85,b= 85,a = 255}
+ui_bottom_bar:ui_elements = {h= 50,r = 180,g = 85,b= 85,a = 255}
 ui_bottom_bar_text:ui_elements = {r=226, g=226 ,b=209, a= 255}
 
 render :: proc(renderer:^sdl.Renderer,texture:^sdl.Texture) {

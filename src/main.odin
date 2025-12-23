@@ -9,7 +9,6 @@ import "vendor:sdl3/ttf"
 
 main :: proc() {
 	using fmt
-	defer sdl.DestroyTexture(current_image)
 
 
 	ok := sdl.Init({.VIDEO, .EVENTS})
@@ -24,6 +23,7 @@ main :: proc() {
 	defer ttf.DestroyRendererTextEngine(text_engine)
 	defer ttf.CloseFont(ui_font)
     defer ttf.DestroyText(left_image_info_text)
+    defer ttf.DestroyText(right_image_info_text)
 	
     window := sdl.CreateWindow(
 		"Image Viewer",
@@ -51,6 +51,8 @@ main :: proc() {
         get_file_info(initial_path)
     }
 	
+	defer sdl.DestroyTexture(current_image)
+    
     for running {
 		free_all(context.temp_allocator)
 		sdl.GetWindowSize(window, &win_size.x, &win_size.y)
@@ -86,7 +88,12 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
-	scale := f32(win_size.x) / img_original_size.x
+    scale:f32
+    if img_original_size.x > img_original_size.y{
+	    scale = f32(win_size.x) / img_original_size.x
+    }else{
+	    scale = f32(win_size.y) / img_original_size.y
+    }
 
 	scale *= zoom_level
 
