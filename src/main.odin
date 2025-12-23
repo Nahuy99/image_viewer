@@ -3,14 +3,14 @@ package main
 import "core:fmt"
 import sdl "vendor:sdl3"
 import sdli "vendor:sdl3/image"
-import sdlt "vendor:sdl3/ttf"
 
 current_image:^sdl.Texture
 
 main :: proc() {
 	using fmt
-
-	ok := sdl.Init({.VIDEO, .EVENTS})
+	defer sdl.DestroyTexture(current_image)
+	
+    ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
 		println("erro ao criar janela")
 	}
@@ -19,9 +19,12 @@ main :: proc() {
 		"Image Viewer",
 		1920,
 		1080,
-		{.BORDERLESS, .RESIZABLE, .HIGH_PIXEL_DENSITY},
+		{.BORDERLESS,.RESIZABLE, .HIGH_PIXEL_DENSITY},
 	)
 	defer sdl.DestroyWindow(window)
+   
+    icon:= sdli.Load("~/dev/Odin/image_viewer/examples/icon.png")
+    sdl.SetWindowIcon(window,icon)
 
 	renderer := sdl.CreateRenderer(window, nil)
 	if renderer == nil {
@@ -30,22 +33,14 @@ main :: proc() {
 	}
 	defer sdl.DestroyRenderer(renderer)
 
-	text_engine := sdlt.CreateRendererTextEngine(renderer)
-	defer sdlt.DestroyRendererTextEngine(text_engine)
-
-	current_image = load_image(
-		renderer,
-		"/home/nahuel/dev/Odin/SDL_3_TEST/assets/textures/D6/D6_material/Cube.png",
-	)
-	defer sdl.DestroyTexture(current_image)
-
-
 	for running {
 		sdl.GetWindowSize(window, &win_size.x, &win_size.y)
 	    sdl.GetTextureSize(current_image, &img_original_size.x, &img_original_size.y)
-		handle_input(renderer)
+		handle_input(renderer,window)
         render(renderer,current_image)
 	}
+
+
 }
 
 load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
