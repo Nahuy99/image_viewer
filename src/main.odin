@@ -7,9 +7,10 @@ import sdl "vendor:sdl3"
 import "vendor:sdl3/image"
 import "vendor:sdl3/ttf"
 
+should_redraw:= true
+
 main :: proc() {
 	using fmt
-
 
 	ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
@@ -35,7 +36,9 @@ main :: proc() {
 
 
 	renderer := sdl.CreateRenderer(window, nil)
-	if renderer == nil {
+    sdl.SetRenderVSync(renderer,1)
+	
+    if renderer == nil {
 		println("erro ao criar renderer: ", sdl.GetError())
 		return
 	}
@@ -55,12 +58,16 @@ main :: proc() {
     
     for running {
 		free_all(context.temp_allocator)
-		sdl.GetWindowSize(window, &win_size.x, &win_size.y)
 		if current_image != nil {
 			sdl.GetTextureSize(current_image, &img_original_size.x, &img_original_size.y)
 		}
-		handle_input(renderer, window)
-		render(renderer, current_image)
+		
+        handle_input(renderer, window)
+		    
+        if should_redraw{
+            render(renderer, current_image,window)
+            should_redraw = false
+        }
 	}
 
 }

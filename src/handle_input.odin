@@ -19,45 +19,64 @@ file_size_str: string
 handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	using fmt
 	event: sdl.Event
-	for sdl.PollEvent(&event) {
-		#partial switch event.type {
-		case .QUIT:
-			running = false
-		case .KEY_DOWN:
-			if event.key.key == sdl.GetKeyFromScancode(.ESCAPE, nil, true) {
-				running = false
-			}
-			if event.key.key == sdl.GetKeyFromScancode(.F, nil, true) {
-				zoom_level = 1.0
-				update_zoom_text(zoom_level)
-				pan_offset = {0, 0}
-			}
-		case .MOUSE_WHEEL:
-			handle_zoom(event.wheel)
 
-		case .DROP_FILE:
-			if event.drop.data != nil {
-				file := event.drop
-				handle_drop_file(file.data, renderer)
-			} else if event.drop.data == nil {
-				println("Erro ao carregar imagem largada: ", sdl.GetError())
+	if sdl.WaitEvent(&event) {
+		loop := true
+		for loop {
+			#partial switch event.type {
+			case .QUIT:
+				running = false
+			case .KEY_DOWN:
+			    #partial switch event.key.scancode{
+                case .ESCAPE:
+					running = false
+                case .F:
+					zoom_level = 1.0
+					update_zoom_text(zoom_level)
+					pan_offset = {0, 0}
+					should_redraw = true
+                case .F11,.RETURN:
+                    flags := sdl.GetWindowFlags(window)
+                    is_fullscreen:= (flags & sdl.WINDOW_FULLSCREEN) != {}
+                    sdl.SetWindowFullscreen(window,!is_fullscreen)
+            }
+
+			case .MOUSE_WHEEL:
+				handle_zoom(event.wheel)
+				should_redraw = true
+
+			case .DROP_FILE:
+				if event.drop.data != nil {
+					file := event.drop
+					handle_drop_file(file.data, renderer)
+					should_redraw = true
+				} else if event.drop.data == nil {
+					println("Erro ao carregar imagem largada: ", sdl.GetError())
+				}
+			case .MOUSE_BUTTON_DOWN:
+				if event.button.button == 1 {
+					is_panning = true
+					last_mouse_pos.y = f32(event.button.y)
+					last_mouse_pos.x = f32(event.button.x)
+				}
+			case .MOUSE_BUTTON_UP:
+				if event.button.button == 1 {
+					is_panning = false
+				}
+			case .MOUSE_MOTION:
+				current_mouse_pos = Vec2{event.motion.x, event.motion.y}
+				if is_panning {
+					delta := current_mouse_pos - last_mouse_pos
+					pan_offset += delta
+					last_mouse_pos = current_mouse_pos
+					should_redraw = true
+				}
+			case .WINDOW_EXPOSED,.WINDOW_RESIZED, .WINDOW_PIXEL_SIZE_CHANGED:
+				should_redraw = true
 			}
-		case .MOUSE_BUTTON_DOWN:
-			if event.button.button == 1 {
-				is_panning = true
-				last_mouse_pos.y = f32(event.button.y)
-				last_mouse_pos.x = f32(event.button.x)
-			}
-		case .MOUSE_BUTTON_UP:
-			if event.button.button == 1 {
-				is_panning = false
-			}
-		case .MOUSE_MOTION:
-			current_mouse_pos = Vec2{event.motion.x, event.motion.y}
-			if is_panning {
-                delta := current_mouse_pos - last_mouse_pos
-                pan_offset += delta
-				last_mouse_pos = current_mouse_pos
+
+			if !sdl.PollEvent(&event) {
+				loop = false
 			}
 		}
 	}
@@ -99,12 +118,12 @@ update_zoom_text :: proc(zoom_legel: f32) {
 
 get_file_info :: proc(path: string) {
 	file, err := os.stat(path, context.temp_allocator)
-	if err == nil { 
+	if err == nil {
 		if file.size < 1024 * 1024 {
 			file_size_str = fmt.tprintf("%dKb", file.size / 1024)
-		}else{
-		     file_size_str = fmt.tprintf("%0.1fM", f64(file.size)/(1024*1024))
-        }
+		} else {
+			file_size_str = fmt.tprintf("%0.1fM", f64(file.size) / (1024 * 1024))
+		}
 	}
 
 	w, h: f32
