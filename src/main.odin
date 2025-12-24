@@ -1,16 +1,17 @@
 package main
 
-import "core:os"
+import "core:encoding/json"
 import "core:fmt"
+import "core:os"
 import "core:strings"
 import sdl "vendor:sdl3"
 import "vendor:sdl3/image"
 import "vendor:sdl3/ttf"
 
-should_redraw:= true
-
 main :: proc() {
 	using fmt
+
+	load_config_file()
 
 	ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
@@ -23,47 +24,43 @@ main :: proc() {
 	}
 	defer ttf.DestroyRendererTextEngine(text_engine)
 	defer ttf.CloseFont(ui_font)
-    defer ttf.DestroyText(left_image_info_text)
-    defer ttf.DestroyText(right_image_info_text)
-	
-    window := sdl.CreateWindow(
-		"Image Viewer",
-		1280,
-		720,
-		{.RESIZABLE, .HIGH_PIXEL_DENSITY},
-	)
+	defer ttf.DestroyText(left_image_info_text)
+	defer ttf.DestroyText(right_image_info_text)
+
+	window := sdl.CreateWindow("Image Viewer", 1280, 720, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
 	defer sdl.DestroyWindow(window)
 
+    load_icon(window)
 
 	renderer := sdl.CreateRenderer(window, nil)
-    sdl.SetRenderVSync(renderer,1)
-	
-    if renderer == nil {
+	sdl.SetRenderVSync(renderer, 1)
+
+	if renderer == nil {
 		println("erro ao criar renderer: ", sdl.GetError())
 		return
 	}
 	defer sdl.DestroyRenderer(renderer)
 
-    load_font(renderer)
+	load_font(renderer)
 
-    if  len(os.args)>1{
-        initial_path := os.args[1]
-        current_image = load_image(renderer,initial_path) 
-        get_file_info(initial_path)
-    }
-	 
-    for running {
+	if len(os.args) > 1 {
+		initial_path := os.args[1]
+		current_image = load_image(renderer, initial_path)
+		get_file_info(initial_path)
+	}
+
+	for running {
 		free_all(context.temp_allocator)
 		if current_image != nil {
 			sdl.GetTextureSize(current_image, &img_original_size.x, &img_original_size.y)
 		}
 
-        handle_input(renderer,window)
+		handle_input(renderer, window)
 
-        if should_redraw{
-            render(renderer, current_image,window)
-            should_redraw = false
-        }
+		if should_redraw {
+			render(renderer, current_image, window)
+			should_redraw = false
+		}
 	}
 
 }
@@ -86,21 +83,21 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 		println("Erro ao criar textura: ", sdl.GetError())
 		return nil
 	}
-    
-    w,h: f32
-    sdl.GetTextureSize(texture,&w,&h)
-    img_original_size.x = w 
-    img_original_size.x = h 
 
-  	return texture
+	w, h: f32
+	sdl.GetTextureSize(texture, &w, &h)
+	img_original_size.x = w
+	img_original_size.x = h
+
+	return texture
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
-   
-    scale_w := f32(win_size.x) / img_original_size.x
-    scale_h := f32(win_size.y) / img_original_size.y
 
-    scale := min(scale_w,scale_h)
+	scale_w := f32(win_size.x) / img_original_size.x
+	scale_h := f32(win_size.y) / img_original_size.y
+
+	scale := min(scale_w, scale_h)
 	scale *= zoom_level
 
 	display_w := img_original_size.x * scale
@@ -109,33 +106,64 @@ calculate_display_size_with_zoom :: proc() -> Vec2 {
 	return {display_w, display_h}
 }
 
-load_font :: proc(renderer:^sdl.Renderer) {
-    using fmt
-	base_path := sdl.GetBasePath()
+load_font :: proc(renderer: ^sdl.Renderer) {
+	using fmt
 	font_path := tprintf("%sassets/fonts/JetBrainsMonoNerdFont-Bold.ttf", base_path)
 
 	text_engine = ttf.CreateRendererTextEngine(renderer)
 
-	ui_font = ttf.OpenFont(strings.clone_to_cstring(font_path, context.temp_allocator), 26)
+	ui_font = ttf.OpenFont(
+		strings.clone_to_cstring(font_path, context.temp_allocator),
+		global_configs.text_size,
+	)
 	if ui_font == nil {
 		println("Erro ao carregar a fonte: %s", sdl.GetError())
 	}
 
 	left_image_info_text = ttf.CreateText(text_engine, ui_font, "Arraste uma imagem", 0)
-    right_image_info_text = ttf.CreateText(text_engine,ui_font,"100%",0)
+	right_image_info_text = ttf.CreateText(text_engine, ui_font, "100%", 0)
+
+	text_color := global_configs.text_color
 
 	ttf.SetTextColor(
 		left_image_info_text,
-		ui_bottom_bar_text.r,
-		ui_bottom_bar_text.g,
-		ui_bottom_bar_text.b,
+		u8(text_color.r * 255),
+		u8(text_color.g * 255),
+		u8(text_color.b * 255),
 		255,
 	)
 	ttf.SetTextColor(
 		right_image_info_text,
-		ui_bottom_bar_text.r,
-		ui_bottom_bar_text.g,
-		ui_bottom_bar_text.b,
+		u8(text_color.r * 255),
+		u8(text_color.g * 255),
+		u8(text_color.b * 255),
 		255,
 	)
+}
+
+load_config_file :: proc() {
+	config_path := fmt.tprintf("%sconfig.json", base_path)
+
+	data, ok := os.read_entire_file(config_path)
+	if !ok {
+		global_configs.bg_color = {1.0, 1.0, 0.918, 1.0}
+		global_configs.ui_bar_color = {0.706, 0.333, 0.333, 1.0}
+		global_configs.text_color = {0.886, 0.886, 0.820, 1.0}
+		global_configs.text_size = 26.
+		return
+	}
+
+	defer delete(data)
+
+	json.unmarshal(data, &global_configs)
+}
+
+load_icon::proc(window:^sdl.Window){
+    icon_path := fmt.tprintf("%sassets/icon.ico",base_path)
+    icon_surface := image.Load(strings.clone_to_cstring(icon_path,context.temp_allocator))
+    
+    if icon_surface != nil{
+        sdl.SetWindowIcon(window,icon_surface)
+        sdl.DestroySurface(icon_surface)
+    }
 }
