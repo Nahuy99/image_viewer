@@ -15,12 +15,12 @@ main :: proc() {
 
 	ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
-		println("Erro ao criar janela: ", sdl.GetError())
+		println("Error while creating window: ", sdl.GetError())
 	}
 
 	ok = ttf.Init()
 	if !ok {
-		println("Erro ao carregar biblioteca ttf: ", sdl.GetError())
+		println("Error while loading the ttf lib: ", sdl.GetError())
 	}
 	defer ttf.DestroyRendererTextEngine(text_engine)
 	defer ttf.CloseFont(ui_font)
@@ -30,25 +30,25 @@ main :: proc() {
 	window := sdl.CreateWindow("Image Viewer", 1280, 720, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
 	defer sdl.DestroyWindow(window)
 
-    load_icon(window)
-
 	renderer := sdl.CreateRenderer(window, nil)
 	sdl.SetRenderVSync(renderer, 1)
 
 	if renderer == nil {
-		println("erro ao criar renderer: ", sdl.GetError())
+		println("Error while creating renderer: ", sdl.GetError())
 		return
 	}
 	defer sdl.DestroyRenderer(renderer)
 
 	load_font(renderer)
 
+    // load via cli, or if you drag an image to the executable
 	if len(os.args) > 1 {
 		initial_path := os.args[1]
 		current_image = load_image(renderer, initial_path)
 		get_file_info(initial_path)
 	}
-
+    
+    //main loop
 	for running {
 		free_all(context.temp_allocator)
 		if current_image != nil {
@@ -73,14 +73,14 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 	surface := image.Load(c_path)
 
 	if surface == nil {
-		println("Erro ao dar load na imagem: ", sdl.GetError())
+		println("Error while loading image: ", sdl.GetError())
 		return nil
 	}
 	defer sdl.DestroySurface(surface)
 
 	texture := sdl.CreateTextureFromSurface(renderer, surface)
 	if texture == nil {
-		println("Erro ao criar textura: ", sdl.GetError())
+		println("Error while creating texture: ", sdl.GetError())
 		return nil
 	}
 
@@ -117,7 +117,7 @@ load_font :: proc(renderer: ^sdl.Renderer) {
 		global_configs.text_size,
 	)
 	if ui_font == nil {
-		println("Erro ao carregar a fonte: %s", sdl.GetError())
+		println("Error while loading font: %s", sdl.GetError())
 	}
 
 	left_image_info_text = ttf.CreateText(text_engine, ui_font, "Arraste uma imagem", 0)
@@ -146,24 +146,12 @@ load_config_file :: proc() {
 
 	data, ok := os.read_entire_file(config_path)
 	if !ok {
-		global_configs.bg_color = {1.0, 1.0, 0.918, 1.0}
-		global_configs.ui_bar_color = {0.706, 0.333, 0.333, 1.0}
-		global_configs.text_color = {0.886, 0.886, 0.820, 1.0}
-		global_configs.text_size = 26.
-		return
+        fmt.println("Error while loading config.json, using default config")
+		global_configs = default_configs
+        return
 	}
 
 	defer delete(data)
 
 	json.unmarshal(data, &global_configs)
-}
-
-load_icon::proc(window:^sdl.Window){
-    icon_path := fmt.tprintf("%sassets/icon.ico",base_path)
-    icon_surface := image.Load(strings.clone_to_cstring(icon_path,context.temp_allocator))
-    
-    if icon_surface != nil{
-        sdl.SetWindowIcon(window,icon_surface)
-        sdl.DestroySurface(icon_surface)
-    }
 }

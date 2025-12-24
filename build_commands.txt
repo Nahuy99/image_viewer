@@ -1,0 +1,7 @@
+use theses commands to build the project on the root folder
+
+Windows 
+odin build src -out:img_viewer.exe -subsystem:windows -resource:resource.rc
+
+Linux
+odin build src -out:img_viwewer
