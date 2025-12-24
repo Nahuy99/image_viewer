@@ -28,9 +28,9 @@ main :: proc() {
 	
     window := sdl.CreateWindow(
 		"Image Viewer",
-		1920,
-		1080,
-		{.BORDERLESS, .RESIZABLE, .HIGH_PIXEL_DENSITY},
+		1280,
+		720,
+		{.RESIZABLE, .HIGH_PIXEL_DENSITY},
 	)
 	defer sdl.DestroyWindow(window)
 
@@ -48,22 +48,18 @@ main :: proc() {
 
     if  len(os.args)>1{
         initial_path := os.args[1]
-
-        current_image = load_image(renderer,initial_path)
-        
+        current_image = load_image(renderer,initial_path) 
         get_file_info(initial_path)
     }
-	
-	defer sdl.DestroyTexture(current_image)
-    
+	 
     for running {
 		free_all(context.temp_allocator)
 		if current_image != nil {
 			sdl.GetTextureSize(current_image, &img_original_size.x, &img_original_size.y)
 		}
-		
-        handle_input(renderer, window)
-		    
+
+        handle_input(renderer,window)
+
         if should_redraw{
             render(renderer, current_image,window)
             should_redraw = false
@@ -90,18 +86,21 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 		println("Erro ao criar textura: ", sdl.GetError())
 		return nil
 	}
-   
+    
+    w,h: f32
+    sdl.GetTextureSize(texture,&w,&h)
+    img_original_size.x = w 
+    img_original_size.x = h 
+
   	return texture
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
-    scale:f32
-    if img_original_size.x > img_original_size.y{
-	    scale = f32(win_size.x) / img_original_size.x
-    }else{
-	    scale = f32(win_size.y) / img_original_size.y
-    }
+   
+    scale_w := f32(win_size.x) / img_original_size.x
+    scale_h := f32(win_size.y) / img_original_size.y
 
+    scale := min(scale_w,scale_h)
 	scale *= zoom_level
 
 	display_w := img_original_size.x * scale

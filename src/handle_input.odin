@@ -19,7 +19,6 @@ file_size_str: string
 handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	using fmt
 	event: sdl.Event
-
 	if sdl.WaitEvent(&event) {
 		loop := true
 		for loop {
@@ -27,29 +26,26 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 			case .QUIT:
 				running = false
 			case .KEY_DOWN:
-			    #partial switch event.key.scancode{
-                case .ESCAPE:
+				#partial switch event.key.scancode {
+				case .ESCAPE:
 					running = false
-                case .F:
-					zoom_level = 1.0
-					update_zoom_text(zoom_level)
-					pan_offset = {0, 0}
-					should_redraw = true
-                case .F11,.RETURN:
-                    flags := sdl.GetWindowFlags(window)
-                    is_fullscreen:= (flags & sdl.WINDOW_FULLSCREEN) != {}
-                    sdl.SetWindowFullscreen(window,!is_fullscreen)
-            }
+				case .F:
+                    reset_zoom()
+				case .F11, .RETURN:
+					flags := sdl.GetWindowFlags(window)
+					is_fullscreen := (flags & sdl.WINDOW_FULLSCREEN) != {}
+					sdl.SetWindowFullscreen(window, !is_fullscreen)
+				}
 
 			case .MOUSE_WHEEL:
 				handle_zoom(event.wheel)
 				should_redraw = true
 
 			case .DROP_FILE:
+                reset_zoom()
 				if event.drop.data != nil {
 					file := event.drop
 					handle_drop_file(file.data, renderer)
-					should_redraw = true
 				} else if event.drop.data == nil {
 					println("Erro ao carregar imagem largada: ", sdl.GetError())
 				}
@@ -71,7 +67,7 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 					last_mouse_pos = current_mouse_pos
 					should_redraw = true
 				}
-			case .WINDOW_EXPOSED,.WINDOW_RESIZED, .WINDOW_PIXEL_SIZE_CHANGED:
+			case .WINDOW_EXPOSED, .WINDOW_RESIZED, .WINDOW_PIXEL_SIZE_CHANGED:
 				should_redraw = true
 			}
 
@@ -90,6 +86,7 @@ handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	}
 
 	current_image = load_image(renderer, spath)
+    sdl.GetTextureSize(current_image,&img_original_size.x,&img_original_size.y)
 
 	get_file_info(spath)
 }
@@ -114,6 +111,13 @@ update_zoom_text :: proc(zoom_legel: f32) {
 		strings.clone_to_cstring(zoom_text, context.temp_allocator),
 		0,
 	)
+}
+
+reset_zoom :: proc() {
+	zoom_level = 1.0
+	update_zoom_text(zoom_level)
+	pan_offset = {0, 0}
+	should_redraw = true
 }
 
 get_file_info :: proc(path: string) {
@@ -155,4 +159,5 @@ get_file_info :: proc(path: string) {
 		strings.clone_to_cstring(img_string, context.temp_allocator),
 		0,
 	)
+	should_redraw = true
 }

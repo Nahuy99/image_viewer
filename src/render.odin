@@ -15,7 +15,7 @@ ui_bottom_bar:ui_elements = {h= 50,r = 180,g = 85,b= 85,a = 255}
 ui_bottom_bar_text:ui_elements = {r=226, g=226 ,b=209, a= 255}
 
 render :: proc(renderer:^sdl.Renderer,texture:^sdl.Texture,window:^sdl.Window) {
-	sdl.SetRenderDrawColor(renderer, 255, 255, 234, 25)
+	sdl.SetRenderDrawColor(renderer, 255, 255, 234, 255)
 	sdl.RenderClear(renderer)
  
 	sdl.GetWindowSize(window, &win_size.x, &win_size.y)
