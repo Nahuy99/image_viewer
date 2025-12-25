@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
@@ -12,8 +13,9 @@ main :: proc() {
 	using fmt
 
 	load_config_file()
-
-	ok := sdl.Init({.VIDEO, .EVENTS})
+    setup_bindings()
+    
+    ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
 		println("Error while creating window: ", sdl.GetError())
 	}
@@ -62,7 +64,6 @@ main :: proc() {
 			should_redraw = false
 		}
 	}
-
 }
 
 load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
@@ -114,7 +115,7 @@ load_font :: proc(renderer: ^sdl.Renderer) {
 
 	ui_font = ttf.OpenFont(
 		strings.clone_to_cstring(font_path, context.temp_allocator),
-		global_configs.text_size,
+		global_configs.ui.text_size,
 	)
 	if ui_font == nil {
 		println("Error while loading font: %s", sdl.GetError())
@@ -123,7 +124,7 @@ load_font :: proc(renderer: ^sdl.Renderer) {
 	left_image_info_text = ttf.CreateText(text_engine, ui_font, "Arraste uma imagem", 0)
 	right_image_info_text = ttf.CreateText(text_engine, ui_font, "100%", 0)
 
-	text_color := global_configs.text_color
+	text_color := global_configs.ui.text_color
 
 	ttf.SetTextColor(
 		left_image_info_text,
@@ -145,13 +146,14 @@ load_config_file :: proc() {
 	config_path := fmt.tprintf("%sconfig.json", base_path)
 
 	data, ok := os.read_entire_file(config_path)
-	if !ok {
+
+	
+    if !ok {
         fmt.println("Error while loading config.json, using default config")
 		global_configs = default_configs
         return
 	}
-
 	defer delete(data)
 
-	json.unmarshal(data, &global_configs)
+    json.unmarshal(data, &global_configs)
 }

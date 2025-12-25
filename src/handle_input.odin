@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
@@ -15,6 +16,7 @@ is_panning: bool
 last_mouse_pos: Vec2
 
 file_size_str: string
+keybidings: map[string]sdl.Scancode
 
 handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	using fmt
@@ -27,22 +29,24 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 				running = false
 			case .KEY_DOWN:
 				#partial switch event.key.scancode {
-				case .ESCAPE:
+				case keybidings["quit"]:
 					running = false
-				case .F:
-                    reset_zoom()
-				case .F11, .RETURN:
+				case keybidings["reset_view"]:
+					reset_zoom()
+				case keybidings["fullscreen"]:
 					flags := sdl.GetWindowFlags(window)
 					is_fullscreen := (flags & sdl.WINDOW_FULLSCREEN) != {}
 					sdl.SetWindowFullscreen(window, !is_fullscreen)
-				}
+                case keybidings["hide_ui"]:
+                    show_or_hide_ui()
+                }
 
 			case .MOUSE_WHEEL:
 				handle_zoom(event.wheel)
 				should_redraw = true
 
 			case .DROP_FILE:
-                reset_zoom()
+				reset_zoom()
 				if event.drop.data != nil {
 					file := event.drop
 					handle_drop_file(file.data, renderer)
@@ -86,7 +90,7 @@ handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	}
 
 	current_image = load_image(renderer, spath)
-    sdl.GetTextureSize(current_image,&img_original_size.x,&img_original_size.y)
+	sdl.GetTextureSize(current_image, &img_original_size.x, &img_original_size.y)
 
 	get_file_info(spath)
 }
@@ -160,4 +164,30 @@ get_file_info :: proc(path: string) {
 		0,
 	)
 	should_redraw = true
+}
+
+show_or_hide_ui :: proc() {
+	if ui_is_visible{
+        ui_is_visible = false
+        should_redraw = true
+    }else{
+        ui_is_visible = true
+        should_redraw = true
+    }
+}
+
+string_to_scancode :: proc(key:string) -> (sdl.Scancode){
+    scancode := sdl.GetScancodeFromName(strings.clone_to_cstring(key,context.temp_allocator))
+    
+    if  scancode != .UNKNOWN {
+        return scancode 
+    }
+    return .UNKNOWN
+}
+
+setup_bindings::proc(){
+    keybidings["fullscreen"] = string_to_scancode(global_configs.keybidings.fullscreen)
+    keybidings["quit"] = string_to_scancode(global_configs.keybidings.quit)
+    keybidings["hide_ui"] = string_to_scancode(global_configs.keybidings.hide_ui)
+    keybidings["reset_view"] = string_to_scancode(global_configs.keybidings.reset_view)
 }

@@ -1,6 +1,16 @@
 {
+    ui:
+    {
     "background": [1.0, 1.0, 0.918, 1.0],
     "ui_bar": [0.706, 0.333, 0.333, 1.0],
     "text": [0.886, 0.886, 0.820, 1.0],
 	"text_size":26.0,
+    },
+    keybinds:
+    {
+        "fullscreen":"F11",
+        "hide_ui":"H",
+        "quit":"ESCAPE",
+        "reset_view":"F"
+    }
 }
