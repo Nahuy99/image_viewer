@@ -1,16 +1,39 @@
 package main
 
 import sdl "vendor:sdl3"
+import im "shared:imgui"
 
 Vec2 :: [2]f32
 
-win_size: [2]i32
 img_original_size: Vec2
-window_scale_factor: f32
 
-should_redraw := true
+App::struct{
+    window: ^sdl.Window,
+    window_scale_factor: f32,
+    renderer: ^sdl.Renderer,
+    win_size: [2]i32,
+    configs: App_Config,
+    base_path: cstring,
+    should_redraw: bool,
+   
+    ui_font: ^im.Font,
 
-base_path := sdl.GetBasePath()
+    img_info_text:string,
+    
+    zoom_level: f32,
+    zoom_text:string,
+
+    display_size: Vec2,
+    current_image: ^sdl.Texture
+}
+
+app:App
+
+init_app::proc(app: ^App){
+    app.zoom_level = 1.0
+    app.should_redraw = true
+    app.base_path = sdl.GetBasePath()
+}
 
 App_Config :: struct {
     ui:         UI_config `json:"ui"`,
@@ -25,19 +48,17 @@ Keybidings_Config :: struct {
 }
 
 UI_config :: struct {
-	bg_color:     [4]f32 `json:"background"`,
-	ui_bar_color: [4]f32 `json:"ui_bar"`,
-	text_color:   [4]f32 `json:"text"`,
+	bg_color:     string `json:"background"`,
+	ui_bar_color: string `json:"ui_bar"`,
+	text_color:   string `json:"text"`,
 	text_size:    f32 `json:"text_size"`,
 }
 
-
-global_configs: App_Config
 default_configs: App_Config = {
 	ui = UI_config{
-		bg_color = {1.0, 1.0, 0.918, 1.0},
-		ui_bar_color = {0.706, 0.333, 0.333, 1.0},
-		text_color = {0.886, 0.886, 0.820, 1.0},
+		bg_color = "FFFFEA",
+		ui_bar_color = "BF5E5E",
+		text_color ="FFFFEA",
 		text_size = 26.0,
 	},
     keybidings = Keybidings_Config{
