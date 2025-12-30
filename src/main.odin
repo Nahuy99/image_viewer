@@ -7,63 +7,84 @@ import "core:os"
 import "core:strings"
 import sdl "vendor:sdl3"
 import "vendor:sdl3/image"
-import "vendor:sdl3/ttf"
+import im "shared:imgui"
+import im_sdl "shared:imgui/imgui_impl_sdl3"
+import im_sdlr "shared:imgui/imgui_impl_sdlrenderer3"
 
 main :: proc() {
 	using fmt
 
+    app.base_path = sdl.GetBasePath()
 	load_config_file()
     setup_bindings()
+    init_app(&app)
     
     ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
 		println("Error while creating window: ", sdl.GetError())
 	}
 
-	ok = ttf.Init()
-	if !ok {
-		println("Error while loading the ttf lib: ", sdl.GetError())
-	}
-	defer ttf.DestroyRendererTextEngine(text_engine)
-	defer ttf.CloseFont(ui_font)
-	defer ttf.DestroyText(left_image_info_text)
-	defer ttf.DestroyText(right_image_info_text)
+	app.window = sdl.CreateWindow("Image Viewer", 1280, 720, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
+	defer sdl.DestroyWindow(app.window)
 
-	window := sdl.CreateWindow("Image Viewer", 1280, 720, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
-	defer sdl.DestroyWindow(window)
+	app.renderer = sdl.CreateRenderer(app.window, nil)
+	sdl.SetRenderVSync(app.renderer, 1)
 
-	renderer := sdl.CreateRenderer(window, nil)
-	sdl.SetRenderVSync(renderer, 1)
-
-	if renderer == nil {
+	if app.renderer == nil {
 		println("Error while creating renderer: ", sdl.GetError())
 		return
 	}
-	defer sdl.DestroyRenderer(renderer)
-
-	load_font(renderer)
-
+	defer sdl.DestroyRenderer(app.renderer)
+	
     // load via cli, or if you drag an image to the executable
 	if len(os.args) > 1 {
 		initial_path := os.args[1]
-		current_image = load_image(renderer, initial_path)
+		app.current_image = load_image(app.renderer, initial_path)
 		get_file_info(initial_path)
-	}
+	}else{
+        app.img_info_text = fmt.aprintf("Drop an image in the app!") 
+    }
+    
+    init_imgui(app.window,app.renderer)
     
     //main loop
 	for running {
 		free_all(context.temp_allocator)
-		if current_image != nil {
-			sdl.GetTextureSize(current_image, &img_original_size.x, &img_original_size.y)
+		if app.current_image != nil {
+			sdl.GetTextureSize(app.current_image, &img_original_size.x, &img_original_size.y)
 		}
-
-		handle_input(renderer, window)
-
-		if should_redraw {
-			render(renderer, current_image, window)
-			should_redraw = false
+ 
+		handle_input(app.renderer, app.window)
+ 
+        if app.should_redraw {		
+            render_imgui(app.renderer)
+            render(app.renderer, app.current_image, app.window)
+		    app.should_redraw = false
 		}
 	}
+
+    cleanup()
+}
+
+cleanup::proc(){
+    //todo cleanup function to delete everything that is still lodaded at this point
+    fmt.println("cleaning up")
+    sdl.DestroyTexture(app.current_image)  
+    sdl.DestroyRenderer(app.renderer)
+    sdl.DestroyWindow(app.window)
+    im_sdl.Shutdown()
+    im_sdlr.Shutdown()
+    im.DestroyContext()
+}
+
+init_imgui::proc(window:^sdl.Window,renderer:^sdl.Renderer){
+    im.CHECKVERSION()
+    im.CreateContext()
+    io:= im.GetIO()
+    load_font(renderer,io)
+    io.ConfigFlags += {.NavEnableKeyboard,.NavEnableGamepad,.DockingEnable}
+    im_sdl.InitForSDLRenderer(window,renderer)
+    im_sdlr.Init(renderer)
 }
 
 load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
@@ -94,12 +115,11 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
-
-	scale_w := f32(win_size.x) / img_original_size.x
-	scale_h := f32(win_size.y) / img_original_size.y
+	scale_w := f32(app.win_size.x) / img_original_size.x
+	scale_h := f32(app.win_size.y) / img_original_size.y
 
 	scale := min(scale_w, scale_h)
-	scale *= zoom_level
+	scale *= app.zoom_level
 
 	display_w := img_original_size.x * scale
 	display_h := img_original_size.y * scale
@@ -107,53 +127,18 @@ calculate_display_size_with_zoom :: proc() -> Vec2 {
 	return {display_w, display_h}
 }
 
-load_font :: proc(renderer: ^sdl.Renderer) {
-	using fmt
-	font_path := tprintf("%sassets/fonts/JetBrainsMonoNerdFont-Bold.ttf", base_path)
-
-	text_engine = ttf.CreateRendererTextEngine(renderer)
-
-	ui_font = ttf.OpenFont(
-		strings.clone_to_cstring(font_path, context.temp_allocator),
-		global_configs.ui.text_size,
-	)
-	if ui_font == nil {
-		println("Error while loading font: %s", sdl.GetError())
-	}
-
-	left_image_info_text = ttf.CreateText(text_engine, ui_font, "Arraste uma imagem", 0)
-	right_image_info_text = ttf.CreateText(text_engine, ui_font, "100%", 0)
-
-	text_color := global_configs.ui.text_color
-
-	ttf.SetTextColor(
-		left_image_info_text,
-		u8(text_color.r * 255),
-		u8(text_color.g * 255),
-		u8(text_color.b * 255),
-		255,
-	)
-	ttf.SetTextColor(
-		right_image_info_text,
-		u8(text_color.r * 255),
-		u8(text_color.g * 255),
-		u8(text_color.b * 255),
-		255,
-	)
-}
 
 load_config_file :: proc() {
-	config_path := fmt.tprintf("%sconfig.json", base_path)
+	config_path := fmt.tprintf("%sconfig.json", app.base_path)
 
 	data, ok := os.read_entire_file(config_path)
-
 	
     if !ok {
         fmt.println("Error while loading config.json, using default config")
-		global_configs = default_configs
+		app.configs = default_configs
         return
 	}
 	defer delete(data)
 
-    json.unmarshal(data, &global_configs)
+    json.unmarshal(data, &app.configs)
 }
