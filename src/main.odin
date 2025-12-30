@@ -81,6 +81,7 @@ init_imgui::proc(window:^sdl.Window,renderer:^sdl.Renderer){
     im.CHECKVERSION()
     im.CreateContext()
     io:= im.GetIO()
+    io.IniFilename = nil
     load_font(renderer,io)
     io.ConfigFlags += {.NavEnableKeyboard,.NavEnableGamepad,.DockingEnable}
     im_sdl.InitForSDLRenderer(window,renderer)
