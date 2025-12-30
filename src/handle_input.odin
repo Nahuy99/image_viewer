@@ -25,7 +25,6 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 		if imgui_consumed {
 			app.should_redraw = true
 		}
-
 		for loop {
 			#partial switch event.type {
 			case .QUIT:

@@ -32,7 +32,6 @@ app:App
 init_app::proc(app: ^App){
     app.zoom_level = 1.0
     app.should_redraw = true
-    app.base_path = sdl.GetBasePath()
 }
 
 App_Config :: struct {
@@ -62,6 +61,9 @@ default_configs: App_Config = {
 		text_size = 26.0,
 	},
     keybidings = Keybidings_Config{
-        fullscreen = "F11"
+        fullscreen = "F11",
+        hide_ui = "H",
+        quit = "ESCAPE",
+        reset_view = "F"
     }
 }

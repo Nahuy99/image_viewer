@@ -14,6 +14,7 @@ import im_sdlr "shared:imgui/imgui_impl_sdlrenderer3"
 main :: proc() {
 	using fmt
 
+    app.base_path = sdl.GetBasePath()
 	load_config_file()
     setup_bindings()
     init_app(&app)
