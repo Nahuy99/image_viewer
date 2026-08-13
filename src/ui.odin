@@ -68,8 +68,6 @@ draw_config_ui :: proc() {
 		im.Checkbox("Dark Mode", &app.dark_mode)
 		app.configs.ui.dark_mode = app.dark_mode
 		im.InputFloat("Font_Size", &app.configs.ui.text_size, 1.0, format = "%.1f")
-		im.PopFont()
-		im.PushFontFloat(app.ui_font, app.configs.ui.text_size)
         // im.ColorEdit3("Background Color", &test_color, color_flags)
 	}
 

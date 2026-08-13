@@ -12,8 +12,9 @@ import sdl "vendor:sdl3"
 import "vendor:sdl3/image"
 
 main :: proc() {
-	app.base_path = sdl.GetBasePath()
-	app.font_path = fmt.caprintf("%sassets/fonts/", app.base_path)
+
+	app.base_path = strings.clone_to_cstring(get_config_dir())
+	app.font_path = fmt.caprintf("%sfonts/", app.base_path)
 	load_config_file()
 	setup_bindings()
 	app.dark_mode = app.configs.ui.dark_mode
@@ -177,4 +178,13 @@ save_config_file :: proc() {
 		fmt.println("Error saving config file: ", ok)
 	}
 
+}
+
+get_config_dir :: proc() -> string {
+	xdg := os.get_env("XDG_CONFIG_HOME", context.allocator)
+	if xdg != "" {
+		return fmt.tprintf("%s/img_viewer/", xdg)
+	}
+	home := os.get_env("HOME", context.allocator)
+	return fmt.tprintf("%s/.config/img_viewer/", home)
 }

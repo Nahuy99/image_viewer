@@ -45,9 +45,12 @@ render_imgui :: proc(renderer: ^sdl.Renderer) {
 	im.NewFrame()
 
 	if ui_is_visible {
-		// draw_top_ui()
+
+		im.PushFontFloat(app.ui_font, app.configs.ui.text_size)
 		if app.show_config do draw_config_ui()
 		if app.show_details do draw_detail_view()
 		draw_bottom_ui()
+
+        im.PopFont()
 	}
 }
