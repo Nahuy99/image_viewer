@@ -5,7 +5,7 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
-import im_sdl "shared:imgui/imgui_impl_sdl3"
+import im_sdl "shared:odin-imgui/imgui_impl_sdl3"
 import sdl "vendor:sdl3"
 
 running: bool = true
@@ -17,7 +17,6 @@ last_mouse_pos: Vec2
 keybidings: map[string]sdl.Scancode
 
 handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
-	using fmt
 	event: sdl.Event
 	if sdl.WaitEvent(&event) {
 		loop := true
@@ -36,9 +35,20 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 				case keybidings["reset_view"]:
 					reset_zoom()
 				case keybidings["fullscreen"]:
-                    set_fullscreen(window)
+					set_fullscreen(window)
 				case keybidings["hide_ui"]:
 					show_or_hide_ui()
+				case keybidings["next_image"]:
+					next_image()
+				case keybidings["prev_image"]:
+					previous_image()
+				case keybidings["detailed_view"]:
+                    app.show_details = !app.show_details
+				case keybidings["toggle_dark_mode"]:
+					app.dark_mode = !app.dark_mode
+                    app.configs.ui.dark_mode = !app.configs.ui.dark_mode
+                case .C:
+                    app.show_config = !app.show_config
 				}
 
 			case .MOUSE_WHEEL:
@@ -50,7 +60,7 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 					file := event.drop
 					handle_drop_file(file.data, renderer)
 				} else if event.drop.data == nil {
-					println("Erro ao carregar imagem largada: ", sdl.GetError())
+					fmt.println("Erro ao carregar imagem largada: ", sdl.GetError())
 				}
 			case .MOUSE_BUTTON_DOWN:
 				if event.button.button == 1 {
@@ -86,29 +96,34 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	}
 }
 
+check_folder :: proc(path: string) {
+	all_files, err := os.read_all_directory_by_path(path, context.temp_allocator)
+	if err != nil {
+		fmt.println("Error parsing file path")
+	}
+	for file in all_files {
+		if filepath.ext(file.name) == ".png" {
+			fmt.println(file.name)
+		}
+	}
+}
+
+Supported_formats :: enum {}
+
 handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	spath := strings.clone_from_cstring(path, context.temp_allocator)
-
-	if app.current_image != nil {
-		sdl.DestroyTexture(app.current_image)
-	}
-
 	app.current_image = load_image(renderer, spath)
 	sdl.GetTextureSize(app.current_image, &img_original_size.x, &img_original_size.y)
-
 	get_file_info(spath)
 }
 
 handle_zoom :: proc(event: sdl.MouseWheelEvent) {
-	using event
-	if y > 0 {
+	if event.y > 0 {
 		app.zoom_level *= 1.1
-	} else if y < 0 {
+	} else if event.y < 0 {
 		app.zoom_level *= 0.9
 	}
 	app.zoom_level = max(0.1, min(10.0, app.zoom_level))
-
-	//update_zoom_text(app.zoom_level)
 }
 
 update_zoom_text :: proc(zoom_level: f32) {
@@ -118,23 +133,22 @@ update_zoom_text :: proc(zoom_level: f32) {
 
 reset_zoom :: proc() {
 	app.zoom_level = 1.0
-	//update_zoom_text(app.zoom_level)
 	pan_offset = {0, 0}
 	app.should_redraw = true
 }
 
 get_file_info :: proc(path: string) {
 	if len(app.img_info_text) > 0 {
-        delete(app.img_info_text)
-    }
+		delete(app.img_info_text)
+	}
 
-    file, err := os.stat(path, context.temp_allocator)
-	file_size_str :string
-    if err == nil {
+	file, err := os.stat(path, context.temp_allocator)
+	file_size_str: string
+	if err == nil {
 		if file.size < 1024 * 1024 {
-            file_size_str = fmt.tprintf("%dKb", file.size / 1024)
+			file_size_str = fmt.tprintf("%dKb", file.size / 1024)
 		} else {
-            file_size_str = fmt.tprintf("%0.1fM", f64(file.size) / (1024 * 1024))
+			file_size_str = fmt.tprintf("%0.1fM", f64(file.size) / (1024 * 1024))
 		}
 	}
 
@@ -161,7 +175,6 @@ get_file_info :: proc(path: string) {
 	}
 
 	app.img_info_text = fmt.aprintf("%s %s %s", file_size, display_name, resolution)
-
 	app.should_redraw = true
 }
 
@@ -189,10 +202,32 @@ setup_bindings :: proc() {
 	keybidings["quit"] = string_to_scancode(app.configs.keybidings.quit)
 	keybidings["hide_ui"] = string_to_scancode(app.configs.keybidings.hide_ui)
 	keybidings["reset_view"] = string_to_scancode(app.configs.keybidings.reset_view)
+	keybidings["next_image"] = string_to_scancode(app.configs.keybidings.next_image)
+	keybidings["prev_image"] = string_to_scancode(app.configs.keybidings.prev_image)
+	keybidings["detailed_view"] = string_to_scancode(app.configs.keybidings.detailed_view)
+	keybidings["toggle_dark_mode"] = string_to_scancode(app.configs.keybidings.toggle_dark_mode)
 }
 
 set_fullscreen :: proc(window: ^sdl.Window) {
 	flags := sdl.GetWindowFlags(window)
 	is_fullscreen := (flags & sdl.WINDOW_FULLSCREEN) != {}
 	sdl.SetWindowFullscreen(window, !is_fullscreen)
+}
+
+next_image :: proc() {
+	if len(app.img_pool) > 0 {
+		app.current_image_index += 1
+		if app.current_image_index >= len(app.img_pool) do app.current_image_index = 0
+		app.current_image = app.img_pool[app.current_image_index]
+		app.should_redraw = true
+	}
+}
+
+previous_image :: proc() {
+	if len(app.img_pool) > 0 {
+		app.current_image_index -= 1
+		if app.current_image_index <= -1 do app.current_image_index = len(app.img_pool) - 1
+		app.current_image = app.img_pool[app.current_image_index]
+		app.should_redraw = true
+	}
 }

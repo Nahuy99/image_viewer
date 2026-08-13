@@ -1,21 +1,21 @@
 package main
 
-import im "shared:imgui"
-import im_sdl "shared:imgui/imgui_impl_sdl3"
-import im_sdlr "shared:imgui/imgui_impl_sdlrenderer3"
+import im "shared:odin-imgui"
+import im_sdl "shared:odin-imgui/imgui_impl_sdl3"
+import im_sdlr "shared:odin-imgui/imgui_impl_sdlrenderer3"
 import sdl "vendor:sdl3"
 
 render :: proc(renderer: ^sdl.Renderer, texture: ^sdl.Texture, window: ^sdl.Window) {
-    bg_color := app.configs.ui.bg_color
-    
-    bg_hex := hex_string_to_u32(bg_color)
+	bg_color := app.dark_mode ? app.configs.ui.bg_color_dark : app.configs.ui.bg_color
 
-    r := u8((bg_hex >> 16)  & 0xFF)
-    g := u8((bg_hex >> 8)  & 0xFF)
-    b := u8((bg_hex >> 0) & 0xFF)
-    a := u8(255)
+	bg_hex := hex_string_to_u32(bg_color)
 
-	sdl.SetRenderDrawColor(renderer,r,g,b,a)
+	r := u8((bg_hex >> 16) & 0xFF)
+	g := u8((bg_hex >> 8) & 0xFF)
+	b := u8((bg_hex >> 0) & 0xFF)
+	a := u8(255)
+
+	sdl.SetRenderDrawColor(renderer, r, g, b, a)
 	sdl.RenderClear(renderer)
 
 	sdl.GetWindowSize(window, &app.win_size.x, &app.win_size.y)
@@ -31,12 +31,11 @@ render :: proc(renderer: ^sdl.Renderer, texture: ^sdl.Texture, window: ^sdl.Wind
 		w = app.display_size.x,
 		h = app.display_size.y,
 	}
- 
+
 	sdl.RenderTexture(renderer, texture, nil, &destination_rec)
 
-    im.Render()
+	im.Render()
 	im_sdlr.RenderDrawData(im.GetDrawData(), renderer)
-
 	sdl.RenderPresent(renderer)
 }
 
@@ -45,9 +44,10 @@ render_imgui :: proc(renderer: ^sdl.Renderer) {
 	im_sdlr.NewFrame()
 	im.NewFrame()
 
-    if ui_is_visible{
-        draw_top_ui()
-        draw_bottom_ui()
-    }
+	if ui_is_visible {
+		// draw_top_ui()
+		if app.show_config do draw_config_ui()
+		if app.show_details do draw_detail_view()
+		draw_bottom_ui()
+	}
 }
-

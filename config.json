@@ -1,16 +1,23 @@
 {
-    ui:
-    {
-    "background": "FFFFEA",
-    "ui_bar": "BF5E5E",
-    "text": "FFFFEA",
-	"text_size":26.0,
-    },
-    keybinds:
-    {
-        "fullscreen":"F11",
-        "hide_ui":"H",
-        "quit":"ESCAPE",
-        "reset_view":"F"
-    }
+	"ui": {
+		"background": "FFFFEA",
+		"background_dark": "171312",
+		"ui_bar": "BF5E5E",
+		"ui_bar_dark": "f4a21c",
+		"text": "FFFFEA",
+		"text_dark": "171312",
+		"text_size": 25.00000000,
+		"font": "HomeVideo-BLG6G.ttf",
+		"dark_mode": false
+	},
+	"keybinds": {
+		"fullscreen": "F",
+		"hide_ui": "H",
+		"quit": "ESCAPE",
+		"reset_view": "R",
+		"next_image": "N",
+		"prev_image": "P",
+		"detailed_view": "D",
+		"toggle_dark_mode": "G"
+	}
 }

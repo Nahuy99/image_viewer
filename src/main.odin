@@ -5,23 +5,23 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "core:strings"
+import im "shared:odin-imgui"
+import im_sdl "shared:odin-imgui/imgui_impl_sdl3"
+import im_sdlr "shared:odin-imgui/imgui_impl_sdlrenderer3"
 import sdl "vendor:sdl3"
 import "vendor:sdl3/image"
-import im "shared:imgui"
-import im_sdl "shared:imgui/imgui_impl_sdl3"
-import im_sdlr "shared:imgui/imgui_impl_sdlrenderer3"
 
 main :: proc() {
-	using fmt
-
-    app.base_path = sdl.GetBasePath()
+	app.base_path = sdl.GetBasePath()
+	app.font_path = fmt.caprintf("%sassets/fonts/", app.base_path)
 	load_config_file()
-    setup_bindings()
-    init_app(&app)
-    
-    ok := sdl.Init({.VIDEO, .EVENTS})
+	setup_bindings()
+	app.dark_mode = app.configs.ui.dark_mode
+	init_app(&app)
+
+	ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
-		println("Error while creating window: ", sdl.GetError())
+		fmt.println("Error while creating window: ", sdl.GetError())
 	}
 
 	app.window = sdl.CreateWindow("Image Viewer", 1280, 720, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
@@ -31,79 +31,86 @@ main :: proc() {
 	sdl.SetRenderVSync(app.renderer, 1)
 
 	if app.renderer == nil {
-		println("Error while creating renderer: ", sdl.GetError())
+		fmt.println("Error while creating renderer: ", sdl.GetError())
 		return
 	}
 	defer sdl.DestroyRenderer(app.renderer)
-	
-    // load via cli, or if you drag an image to the executable
+
+	// load via cli, or if you drag an image to the executable
 	if len(os.args) > 1 {
 		initial_path := os.args[1]
 		app.current_image = load_image(app.renderer, initial_path)
 		get_file_info(initial_path)
-	}else{
-        app.img_info_text = fmt.aprintf("Drop an image in the app!") 
-    }
-    
-    init_imgui(app.window,app.renderer)
-    
-    //main loop
+	} else {
+		app.img_info_text = fmt.aprintf("Drop an image in the app!")
+	}
+
+	init_imgui(app.window, app.renderer)
+
+	//main loop
 	for running {
 		free_all(context.temp_allocator)
 		if app.current_image != nil {
 			sdl.GetTextureSize(app.current_image, &img_original_size.x, &img_original_size.y)
 		}
- 
+
 		handle_input(app.renderer, app.window)
- 
-        if app.should_redraw {		
-            render_imgui(app.renderer)
-            render(app.renderer, app.current_image, app.window)
-		    app.should_redraw = false
+
+		if app.should_redraw {
+			render_imgui(app.renderer)
+			render(app.renderer, app.current_image, app.window)
+			app.should_redraw = false
 		}
 	}
-
-    cleanup()
+	save_config_file()
+	quit()
 }
 
-cleanup::proc(){
-    //todo cleanup function to delete everything that is still lodaded at this point
-    fmt.println("cleaning up")
-    sdl.DestroyTexture(app.current_image)  
-    sdl.DestroyRenderer(app.renderer)
-    sdl.DestroyWindow(app.window)
-    im_sdl.Shutdown()
-    im_sdlr.Shutdown()
-    im.DestroyContext()
+quit :: proc() {
+	//todo cleanup function to delete everything that is still lodaded at this point
+
+	for img in app.img_pool {
+		if img != nil {
+			sdl.DestroyTexture(img)
+		}
+	}
+	delete(app.img_pool)
+	if app.current_image != nil {
+		sdl.DestroyTexture(app.current_image)
+	}
+	sdl.DestroyRenderer(app.renderer)
+	sdl.DestroyWindow(app.window)
+	im_sdl.Shutdown()
+	im_sdlr.Shutdown()
+	im.DestroyContext()
 }
 
-init_imgui::proc(window:^sdl.Window,renderer:^sdl.Renderer){
-    im.CHECKVERSION()
-    im.CreateContext()
-    io:= im.GetIO()
-    io.IniFilename = nil
-    load_font(renderer,io)
-    io.ConfigFlags += {.NavEnableKeyboard,.NavEnableGamepad,.DockingEnable}
-    im_sdl.InitForSDLRenderer(window,renderer)
-    im_sdlr.Init(renderer)
+init_imgui :: proc(window: ^sdl.Window, renderer: ^sdl.Renderer) {
+	im.CHECKVERSION()
+	im.CreateContext()
+	io := im.GetIO()
+	io.IniFilename = nil
+	load_font(renderer, io)
+	io.ConfigFlags += {.NavEnableKeyboard, .NavEnableGamepad, .DockingEnable}
+	im_sdl.InitForSDLRenderer(window, renderer)
+	im_sdlr.Init(renderer)
 }
 
 load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
-	using fmt
-
+	//todo get a path as a folder and check every image inside it to load inside the img pool array
 	c_path := strings.clone_to_cstring(path, context.temp_allocator)
 
 	surface := image.Load(c_path)
 
 	if surface == nil {
-		println("Error while loading image: ", sdl.GetError())
+		fmt.println("Error while loading image: ", sdl.GetError())
 		return nil
 	}
 	defer sdl.DestroySurface(surface)
 
 	texture := sdl.CreateTextureFromSurface(renderer, surface)
 	if texture == nil {
-		println("Error while creating texture: ", sdl.GetError())
+		fmt.println("Error while creating texture: ", sdl.GetError())
 		return nil
 	}
 
@@ -112,6 +119,7 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 	img_original_size.x = w
 	img_original_size.x = h
 
+	append(&app.img_pool, texture)
 	return texture
 }
 
@@ -132,14 +140,41 @@ calculate_display_size_with_zoom :: proc() -> Vec2 {
 load_config_file :: proc() {
 	config_path := fmt.tprintf("%sconfig.json", app.base_path)
 
-	data, ok := os.read_entire_file(config_path)
-	
-    if !ok {
-        fmt.println("Error while loading config.json, using default config")
+	data, err := os.read_entire_file(config_path, context.temp_allocator)
+
+	if err != nil {
+		fmt.println("Error while loading config.json, using default config")
 		app.configs = default_configs
-        return
+		return
 	}
 	defer delete(data)
 
-    json.unmarshal(data, &app.configs)
+	json_err := json.unmarshal(data, &app.configs)
+
+	if json_err != nil {
+		fmt.println("Error parsing config.json: ", json_err)
+		app.configs = default_configs
+		return
+	}
+}
+
+save_config_file :: proc() {
+	path := fmt.tprintf("%sconfig.json", app.base_path)
+
+	opt := json.Marshal_Options {
+		pretty = true,
+	}
+
+	data, err := json.marshal(app.configs, opt, context.allocator)
+	if err != nil {
+		fmt.println("Error marshaling cofig file: ", err)
+		return
+	}
+	defer delete(data)
+
+	ok := os.write_entire_file(path, data)
+	if ok != os.General_Error.None {
+		fmt.println("Error saving config file: ", ok)
+	}
+
 }
