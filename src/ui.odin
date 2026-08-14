@@ -194,7 +194,7 @@ draw_bottom_ui :: proc() {
 }
 
 load_font :: proc(renderer: ^sdl.Renderer, io: ^im.IO) {
-	font_path, err := filepath.join({app.font_path, app.configs.ui.font})
+	font_path, err := filepath.join({app.font_path, app.configs.ui.font}, context.temp_allocator)
 	app.ui_font = im.FontAtlas_AddFontFromFileTTF(
 		io.Fonts,
 		strings.clone_to_cstring(font_path, context.temp_allocator),

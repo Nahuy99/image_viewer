@@ -98,17 +98,17 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	}
 }
 
-check_folder :: proc(path: string) {
-	all_files, err := os.read_all_directory_by_path(path, context.temp_allocator)
-	if err != nil {
-		fmt.println("Error parsing file path")
-	}
-	for file in all_files {
-		if filepath.ext(file.name) == ".png" {
-			fmt.println(file.name)
-		}
-	}
-}
+// check_folder :: proc(path: string) {
+// 	all_files, err := os.read_all_directory_by_path(path, context.temp_allocator)
+// 	if err != nil {
+// 		fmt.println("Error parsing file path")
+// 	}
+// 	for file in all_files {
+// 		if filepath.ext(file.name) == ".png" {
+// 			fmt.println(file.name)
+// 		}
+// 	}
+// }
 
 handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	app.show_keys = false

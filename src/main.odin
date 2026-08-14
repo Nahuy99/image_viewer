@@ -3,6 +3,7 @@ package main
 import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
@@ -12,7 +13,13 @@ import im_sdlr "shared:odin-imgui/imgui_impl_sdlrenderer3"
 import sdl "vendor:sdl3"
 import sdli "vendor:sdl3/image"
 
+tracking_alloc: mem.Tracking_Allocator
+
 main :: proc() {
+
+	mem.tracking_allocator_init(&tracking_alloc, context.allocator)
+	context.allocator = mem.tracking_allocator(&tracking_alloc)
+
 	app.base_path = get_config_dir()
 	app.font_path, _ = filepath.join({app.base_path, "fonts"}, context.allocator)
 
@@ -69,11 +76,23 @@ main :: proc() {
 	}
 	save_config_file()
 	quit()
+
+	if len(tracking_alloc.allocation_map) > 0 {
+		fmt.println("\n=== MEMORY LEAKS ===")
+		for ptr, record in tracking_alloc.allocation_map {
+			fmt.printf("Leak: %v bytes at %p\n", record.size, ptr)
+			fmt.printf("  Location: %s:%d\n", record.location.file_path, record.location.line)
+		}
+	} else {
+		fmt.println("No leaks!")
+	}
+
+	mem.tracking_allocator_destroy(&tracking_alloc)
 }
 
 quit :: proc() {
 	//todo cleanup function to delete everything that is still lodaded at this point
-    free_config_strings()
+	free_config_strings()
 
 	for img in app.images {
 		if img.image != nil {
@@ -83,7 +102,13 @@ quit :: proc() {
 	}
 
 	delete(app.images)
-    delete(keybidings)
+	delete(keybidings)
+    
+    // free paths 
+    delete(app.base_path)
+	delete(app.font_path)
+	delete(app.config_file_path)
+    //
 	sdl.DestroyRenderer(app.renderer)
 	sdl.DestroyWindow(app.window)
 	im_sdl.Shutdown()
@@ -152,8 +177,8 @@ calculate_display_size_with_zoom :: proc() -> Vec2 {
 }
 
 load_config_file :: proc() {
-	config_path, _ := filepath.join({app.base_path, "config.json"}, context.allocator)
-	data, err := os.read_entire_file(config_path, context.allocator)
+	app.config_file_path, _ = filepath.join({app.base_path, "config.json"}, context.allocator)
+	data, err := os.read_entire_file(app.config_file_path, context.allocator)
 
 	if err != nil {
 		fmt.println("Error while loading config.json, using default config")
@@ -173,7 +198,7 @@ load_config_file :: proc() {
 }
 
 save_config_file :: proc() {
-	path := fmt.tprintf("%sconfig.json", app.base_path)
+	path := app.config_file_path
 
 	opt := json.Marshal_Options {
 		pretty = true,
@@ -187,45 +212,47 @@ save_config_file :: proc() {
 	defer delete(data)
 
 	ok := os.write_entire_file(path, data)
-	if ok != os.General_Error.None {
+	if ok != nil {
 		fmt.println("Error saving config file: ", ok)
 	}
-
 }
 
-get_config_dir :: proc() -> (path: string) {
+get_config_dir :: proc() -> string {
 	//plataform agnostic????? i hope so
 	when ODIN_OS == .Windows {
 		appdata := os.get_env("LOCALAPPDATA", context.allocator)
 		if appdata != "" {
-			path, _ := filepath.join({appdata, "img_viewer"})
+			path, _ := filepath.join({appdata, "img_viewer"}, context.allocator)
 			return path
 		}
-		appdata = os.get_env("APPDATA", context.allocator)
+		appdata = os.get_env("APPDATA", context.temp_allocator)
 		if appdata != "" {
-			path, _ := filepath.join({appdata, "img_viewer"})
+			path, _ := filepath.join({appdata, "img_viewer"}, context.allocator)
 			return path
 		}
 		home := os.get_env("USERPROFILE", context.allocator)
 		if home != "" {
-			path, _ := filepath.join({home, ".config", "img_viewer"})
+			path, _ := filepath.join({home, ".config", "img_viewer"}, context.allocator)
 			return path
 		}
 	} else when ODIN_OS == .Darwin {
 		home := os.get_env("HOME", context.allocator)
 		if home != "" {
-			path, _ := filepath.join({home, "Library", "Application Support", "img_viewer"})
+			path, _ := filepath.join(
+				{home, "Library", "Application Support", "img_viewer"},
+				context.temp_allocator,
+			)
 			return path
 		}
 	} else {
-		xdg := os.get_env("XDG_CONFIG_HOME", context.allocator)
+		xdg := os.get_env("XDG_CONFIG_HOME", context.temp_allocator)
 		if xdg != "" {
-			path, _ := filepath.join({xdg, "img_viewer"})
+			path, _ := filepath.join({xdg, "img_viewer"}, context.allocator)
 			return path
 		}
-		home := os.get_env("HOME", context.allocator)
+		home := os.get_env("HOME", context.temp_allocator)
 		if home != "" {
-			path, _ := filepath.join({home, ".config", "img_viewer"})
+			path, _ := filepath.join({home, ".config", "img_viewer"}, context.allocator)
 			return path
 		}
 	}

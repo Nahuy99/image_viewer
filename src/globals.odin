@@ -15,6 +15,7 @@ App :: struct {
 	win_size:            [2]i32,
 	display_size:        Vec2,
 	configs:             App_Config,
+	config_file_path:    string,
 	base_path:           string,
 	font_path:           string,
 	should_redraw:       bool,
