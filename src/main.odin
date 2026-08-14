@@ -25,7 +25,8 @@ main :: proc() {
 
 	load_config_file()
 	setup_bindings()
-	app.dark_mode = app.configs.ui.dark_mode
+    app.dark_mode = app.configs.ui.dark_mode
+	setup_colors()
 	init_app(&app)
 
 	ok := sdl.Init({.VIDEO, .EVENTS})
@@ -91,8 +92,7 @@ main :: proc() {
 }
 
 quit :: proc() {
-	//todo cleanup function to delete everything that is still lodaded at this point
-	free_config_strings()
+	free_config_varialbes()
 
 	for img in app.images {
 		if img.image != nil {

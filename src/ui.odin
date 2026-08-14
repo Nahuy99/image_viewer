@@ -42,34 +42,14 @@ imgui_hex_string_to_u32 :: proc(hex_string: string) -> u32 {
 	return final_color
 }
 
-test_color: [3]f32
-
-color_flags: im.ColorEditFlags = {
-	.NoAlpha,
-	.NoPicker,
-	.NoSmallPreview,
-	.DisplayHex,
-	.NoDragDrop,
-	.NoTooltip,
-}
-
 draw_config_ui :: proc() {
 	viewport := im.GetMainViewport()
 
-	bkg_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.ui_bar_color_dark) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
-
-	text_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.text_color_dark) : imgui_hex_string_to_u32(app.configs.ui.text_color)
-
-	im.PushStyleColor(.WindowBg, bkg_color)
-	im.PushStyleColor(.Text, text_color)
+	im.PushStyleColor(.WindowBg, app.configs.bar_color)
+	im.PushStyleColor(.Text, app.configs.text_color)
 
 	if im.Begin("Config Box", nil, {.NoTitleBar, .NoMove, .NoBringToFrontOnFocus}) {
-		im.Checkbox("Dark Mode", &app.dark_mode)
-		app.configs.ui.dark_mode = app.dark_mode
 		im.InputFloat("Font_Size", &app.configs.ui.text_size, 1.0, format = "%.1f")
-		// im.ColorEdit3("Background Color", &test_color, color_flags)
 		im.End()
 	}
 
@@ -79,14 +59,8 @@ draw_config_ui :: proc() {
 draw_detail_view :: proc() {
 	viewport := im.GetMainViewport()
 
-	bkg_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.ui_bar_color_dark) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
-
-	text_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.text_color_dark) : imgui_hex_string_to_u32(app.configs.ui.text_color)
-
-	im.PushStyleColor(.WindowBg, bkg_color)
-	im.PushStyleColor(.Text, text_color)
+	im.PushStyleColor(.WindowBg, app.configs.bar_color)
+	im.PushStyleColor(.Text, app.configs.text_color)
 
 	if im.Begin("Detailed View", nil, {.NoTitleBar, .NoMove, .NoBringToFrontOnFocus}) {
 		im.End()
@@ -97,26 +71,36 @@ draw_detail_view :: proc() {
 
 draw_keybinds :: proc() {
 	viewport := im.GetMainViewport()
-	box_size: [2]f32 = {800, 600}
+	box_size: Vec2 = {800, 600}
+	shadow_offset: Vec2 = {20, 20}
 
-	bar_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.ui_bar_color_dark) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
+	shadow_pos: Vec2 = {
+		viewport.Size.x / 2 - (box_size.x / 2) + shadow_offset.x,
+		viewport.Size.y / 2 - (box_size.y / 2) + shadow_offset.y,
+	}
 
-	text_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.text_color_dark) : imgui_hex_string_to_u32(app.configs.ui.text_color)
+	im.SetNextWindowPos(shadow_pos)
+	im.SetNextWindowSize(box_size)
+	im.PushStyleColor(.WindowBg, app.configs.shadow_color)
 
-	im.PushStyleColor(.WindowBg, bar_color)
-	im.PushStyleColor(.Text, text_color)
+	if im.Begin(
+		"KeybindingsShadow",
+		nil,
+		{.NoTitleBar, .NoResize, .NoMove, .NoScrollbar, .NoBringToFrontOnFocus, .NoNavInputs},
+	) {
+		im.End()
+	}
+
+	im.PopStyleColor()
+
+	im.PushStyleColor(.WindowBg, app.configs.bar_color)
+	im.PushStyleColor(.Text, app.configs.text_color)
 	im.SetNextWindowPos(
 		{viewport.Size.x / 2 - (box_size.x / 2), viewport.Size.y / 2 - (box_size.y / 2)},
 	)
 	im.SetNextWindowSize(box_size)
 
-	if im.Begin(
-		"Keybindings",
-		nil,
-		{.NoTitleBar, .NoResize, .NoMove, .NoScrollbar, .NoBringToFrontOnFocus},
-	) {
+	if im.Begin("Keybindings", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
 		centered_text("KEYBINDINGS: ")
 		centered_text("Toggle Keybindings Menu: 'K'")
 		centered_text("Toggle Dark Mode: 'G'")
@@ -151,20 +135,10 @@ draw_bottom_ui :: proc() {
 	im.SetNextWindowPos({viewport.Pos.x, viewport.Size.y - top_offset})
 	im.SetNextWindowSize({viewport.Size.x, bar_height})
 
-	bar_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.ui_bar_color_dark) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
+	im.PushStyleColor(.WindowBg, app.configs.bar_color)
+	im.PushStyleColor(.Text, app.configs.text_color)
 
-	text_color :=
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.text_color_dark) : imgui_hex_string_to_u32(app.configs.ui.text_color)
-
-	im.PushStyleColor(.WindowBg, bar_color)
-	im.PushStyleColor(.Text, text_color)
-
-	if im.Begin(
-		"BottomBar",
-		nil,
-		{.NoTitleBar, .NoResize, .NoMove, .NoScrollbar, .NoBringToFrontOnFocus},
-	) {
+	if im.Begin("BottomBar", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
 
 		im.SetCursorPosY(15.0)
 

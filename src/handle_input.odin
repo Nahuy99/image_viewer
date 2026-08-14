@@ -45,8 +45,7 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 				case keybidings["detailed_view"]:
 					app.show_details = !app.show_details
 				case keybidings["toggle_dark_mode"]:
-					app.dark_mode = !app.dark_mode
-					app.configs.ui.dark_mode = !app.configs.ui.dark_mode
+                    toggle_dark_mode()
 				case .C:
 					app.show_config = !app.show_config
 				case .K:
@@ -228,4 +227,11 @@ previous_image :: proc() {
 		if app.current_image <= -1 do app.current_image = len(app.images) - 1
 		app.should_redraw = true
 	}
+}
+
+toggle_dark_mode :: proc() {
+	app.dark_mode = !app.dark_mode
+	app.configs.ui.dark_mode = !app.configs.ui.dark_mode
+    setup_colors()
+    app.should_redraw = true
 }
