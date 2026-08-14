@@ -116,8 +116,8 @@ handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	load_image(renderer, spath)
 	sdl.GetTextureSize(
 		app.images[app.current_image].image,
-		&img_original_size.x,
-		&img_original_size.y,
+		&app.images[app.current_image].size.x,
+		&app.images[app.current_image].size.y,
 	)
 }
 
@@ -142,10 +142,6 @@ reset_zoom :: proc() {
 }
 
 get_file_info :: proc(path: string, image: ^Image) -> string {
-	// if len(app.img_info_text) > 0 {
-	// 	delete(app.img_info_text)
-	// }
-
 	file, err := os.stat(path, context.temp_allocator)
 	file_size_str: string
 	if err == nil {
@@ -176,7 +172,6 @@ get_file_info :: proc(path: string, image: ^Image) -> string {
 			file_stem[len(file_stem) - 3:],
 			file_extention,
 		)
-
 	}
 
 	app.should_redraw = true

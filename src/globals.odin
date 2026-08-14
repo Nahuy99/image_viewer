@@ -13,7 +13,7 @@ App :: struct {
 	window_scale_factor: f32,
 	renderer:            ^sdl.Renderer,
 	win_size:            [2]i32,
-    display_size:        Vec2,
+	display_size:        Vec2,
 	configs:             App_Config,
 	base_path:           string,
 	font_path:           string,
@@ -23,7 +23,6 @@ App :: struct {
 	zoom_text:           string,
 	images:              [dynamic]Image,
 	current_image:       int,
-	// img_pool:            [dynamic]^sdl.Texture,
 	show_config:         bool,
 	show_details:        bool,
 	show_keys:           bool,
@@ -33,12 +32,13 @@ Image :: struct {
 	image: ^sdl.Texture,
 	index: int,
 	info:  string,
+	size:  Vec2,
 }
 
 app: App
 
 init_app :: proc(app: ^App) {
-    app.images = make([dynamic]Image)
+	app.images = make([dynamic]Image)
 	app.zoom_level = 1.0
 	app.should_redraw = true
 	app.current_image = 0
@@ -95,4 +95,23 @@ default_configs: App_Config = {
 		next_image = "N",
 		prev_image = "P",
 	},
+}
+
+free_config_strings :: proc() {
+	delete(app.configs.ui.bg_color)
+	delete(app.configs.ui.bg_color_dark)
+	delete(app.configs.ui.ui_bar_color)
+	delete(app.configs.ui.ui_bar_color_dark)
+	delete(app.configs.ui.text_color)
+	delete(app.configs.ui.text_color_dark)
+	delete(app.configs.ui.font)
+
+	delete(app.configs.keybidings.fullscreen)
+	delete(app.configs.keybidings.hide_ui)
+	delete(app.configs.keybidings.quit)
+	delete(app.configs.keybidings.reset_view)
+	delete(app.configs.keybidings.next_image)
+	delete(app.configs.keybidings.prev_image)
+	delete(app.configs.keybidings.detailed_view)
+	delete(app.configs.keybidings.toggle_dark_mode)
 }

@@ -13,7 +13,6 @@ import sdl "vendor:sdl3"
 import sdli "vendor:sdl3/image"
 
 main :: proc() {
-
 	app.base_path = get_config_dir()
 	app.font_path, _ = filepath.join({app.base_path, "fonts"}, context.allocator)
 
@@ -41,6 +40,7 @@ main :: proc() {
 
 	// load via cli, or if you drag an image to the executable
 	if len(os.args) > 1 {
+		app.show_keys = false
 		initial_path := os.args[1]
 		load_image(app.renderer, initial_path)
 	}
@@ -54,8 +54,8 @@ main :: proc() {
 		if len(app.images) > 0 {
 			sdl.GetTextureSize(
 				app.images[app.current_image].image,
-				&img_original_size.x,
-				&img_original_size.y,
+				&app.images[app.current_image].size.x,
+				&app.images[app.current_image].size.y,
 			)
 		}
 
@@ -73,14 +73,17 @@ main :: proc() {
 
 quit :: proc() {
 	//todo cleanup function to delete everything that is still lodaded at this point
+    free_config_strings()
 
 	for img in app.images {
 		if img.image != nil {
 			sdl.DestroyTexture(img.image)
 		}
+		delete(img.info)
 	}
 
 	delete(app.images)
+    delete(keybidings)
 	sdl.DestroyRenderer(app.renderer)
 	sdl.DestroyWindow(app.window)
 	im_sdl.Shutdown()
@@ -120,8 +123,11 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 
 	w, h: f32
 	sdl.GetTextureSize(texture, &w, &h)
-	img_original_size.x = w
-	img_original_size.x = h
+
+	if len(app.images) > 0 {
+		app.images[app.current_image].size.x = w
+		app.images[app.current_image].size.y = h
+	}
 
 	image.image = texture
 	image.index = len(app.images)
@@ -131,22 +137,23 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
-	scale_w := f32(app.win_size.x) / img_original_size.x
-	scale_h := f32(app.win_size.y) / img_original_size.y
+
+	if len(app.images) <= 0 do return {0, 0}
+	scale_w := f32(app.win_size.x) / app.images[app.current_image].size.x
+	scale_h := f32(app.win_size.y) / app.images[app.current_image].size.y
 
 	scale := min(scale_w, scale_h)
 	scale *= app.zoom_level
 
-	display_w := img_original_size.x * scale
-	display_h := img_original_size.y * scale
+	display_w := app.images[app.current_image].size.x * scale
+	display_h := app.images[app.current_image].size.y * scale
 
 	return {display_w, display_h}
 }
 
 load_config_file :: proc() {
-	config_path := fmt.tprintf("%sconfig.json", app.base_path)
-
-	data, err := os.read_entire_file(config_path, context.temp_allocator)
+	config_path, _ := filepath.join({app.base_path, "config.json"}, context.allocator)
+	data, err := os.read_entire_file(config_path, context.allocator)
 
 	if err != nil {
 		fmt.println("Error while loading config.json, using default config")
@@ -162,6 +169,7 @@ load_config_file :: proc() {
 		app.configs = default_configs
 		return
 	}
+
 }
 
 save_config_file :: proc() {
