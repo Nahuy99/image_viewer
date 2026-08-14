@@ -1,0 +1,27 @@
+name: Sync to Forgejo
+
+on:
+  push:
+    branches:
+      - main 
+      - '**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Forgejo
+        run: |
+          git remote add forgejo https://x-access-token:${{ secrets.FORGEJO_TOKEN }}@${{ vars.FORGEJO_HOST }}/${{ github.repository }}.git
+
+          git push forgejo --all --force
+
+          git push forgejo --tags --force
+        env:
+          GIT_AUTHOR_NAME: "GitHub Actions"
+          GIT_AUTHOR_EMAIL: "actions@github.com"
