@@ -1,6 +1,5 @@
 package main
 
-import "core:encoding/json"
 import im "shared:odin-imgui"
 import sdl "vendor:sdl3"
 
@@ -14,28 +13,36 @@ App :: struct {
 	window_scale_factor: f32,
 	renderer:            ^sdl.Renderer,
 	win_size:            [2]i32,
+    display_size:        Vec2,
 	configs:             App_Config,
-	base_path:           cstring,
-	font_path:           cstring,
+	base_path:           string,
+	font_path:           string,
 	should_redraw:       bool,
 	ui_font:             ^im.Font,
-	img_info_text:       string,
 	zoom_level:          f32,
 	zoom_text:           string,
-	display_size:        Vec2,
-	current_image:       ^sdl.Texture,
-	current_image_index: int,
-	img_pool:            [dynamic]^sdl.Texture,
+	images:              [dynamic]Image,
+	current_image:       int,
+	// img_pool:            [dynamic]^sdl.Texture,
 	show_config:         bool,
 	show_details:        bool,
+	show_keys:           bool,
+}
+
+Image :: struct {
+	image: ^sdl.Texture,
+	index: int,
+	info:  string,
 }
 
 app: App
 
 init_app :: proc(app: ^App) {
+    app.images = make([dynamic]Image)
 	app.zoom_level = 1.0
 	app.should_redraw = true
-	app.current_image_index = 0
+	app.current_image = 0
+	app.show_keys = true
 }
 
 App_Config :: struct {

@@ -4,17 +4,19 @@ import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 import "core:strings"
 import im "shared:odin-imgui"
 import im_sdl "shared:odin-imgui/imgui_impl_sdl3"
 import im_sdlr "shared:odin-imgui/imgui_impl_sdlrenderer3"
 import sdl "vendor:sdl3"
-import "vendor:sdl3/image"
+import sdli "vendor:sdl3/image"
 
 main :: proc() {
 
-	app.base_path = strings.clone_to_cstring(get_config_dir())
-	app.font_path = fmt.caprintf("%sfonts/", app.base_path)
+	app.base_path = get_config_dir()
+	app.font_path, _ = filepath.join({app.base_path, "fonts"}, context.allocator)
+
 	load_config_file()
 	setup_bindings()
 	app.dark_mode = app.configs.ui.dark_mode
@@ -40,10 +42,7 @@ main :: proc() {
 	// load via cli, or if you drag an image to the executable
 	if len(os.args) > 1 {
 		initial_path := os.args[1]
-		app.current_image = load_image(app.renderer, initial_path)
-		get_file_info(initial_path)
-	} else {
-		app.img_info_text = fmt.aprintf("Drop an image in the app!")
+		load_image(app.renderer, initial_path)
 	}
 
 	init_imgui(app.window, app.renderer)
@@ -51,15 +50,20 @@ main :: proc() {
 	//main loop
 	for running {
 		free_all(context.temp_allocator)
-		if app.current_image != nil {
-			sdl.GetTextureSize(app.current_image, &img_original_size.x, &img_original_size.y)
+
+		if len(app.images) > 0 {
+			sdl.GetTextureSize(
+				app.images[app.current_image].image,
+				&img_original_size.x,
+				&img_original_size.y,
+			)
 		}
 
 		handle_input(app.renderer, app.window)
 
 		if app.should_redraw {
 			render_imgui(app.renderer)
-			render(app.renderer, app.current_image, app.window)
+			render(app.renderer, app.window)
 			app.should_redraw = false
 		}
 	}
@@ -70,15 +74,13 @@ main :: proc() {
 quit :: proc() {
 	//todo cleanup function to delete everything that is still lodaded at this point
 
-	for img in app.img_pool {
-		if img != nil {
-			sdl.DestroyTexture(img)
+	for img in app.images {
+		if img.image != nil {
+			sdl.DestroyTexture(img.image)
 		}
 	}
-	delete(app.img_pool)
-	if app.current_image != nil {
-		sdl.DestroyTexture(app.current_image)
-	}
+
+	delete(app.images)
 	sdl.DestroyRenderer(app.renderer)
 	sdl.DestroyWindow(app.window)
 	im_sdl.Shutdown()
@@ -92,27 +94,28 @@ init_imgui :: proc(window: ^sdl.Window, renderer: ^sdl.Renderer) {
 	io := im.GetIO()
 	io.IniFilename = nil
 	load_font(renderer, io)
-	io.ConfigFlags += {.NavEnableKeyboard, .NavEnableGamepad, .DockingEnable}
+	io.ConfigFlags += {.NavEnableKeyboard, .DockingEnable}
 	im_sdl.InitForSDLRenderer(window, renderer)
 	im_sdlr.Init(renderer)
 }
 
-load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
+load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 	//todo get a path as a folder and check every image inside it to load inside the img pool array
+	image: Image
 	c_path := strings.clone_to_cstring(path, context.temp_allocator)
 
-	surface := image.Load(c_path)
+	surface := sdli.Load(c_path)
 
 	if surface == nil {
 		fmt.println("Error while loading image: ", sdl.GetError())
-		return nil
+		return
 	}
 	defer sdl.DestroySurface(surface)
 
 	texture := sdl.CreateTextureFromSurface(renderer, surface)
 	if texture == nil {
 		fmt.println("Error while creating texture: ", sdl.GetError())
-		return nil
+		return
 	}
 
 	w, h: f32
@@ -120,8 +123,11 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) -> ^sdl.Texture {
 	img_original_size.x = w
 	img_original_size.x = h
 
-	append(&app.img_pool, texture)
-	return texture
+	image.image = texture
+	image.index = len(app.images)
+	image.info = get_file_info(path, &image)
+	append(&app.images, image)
+	app.current_image = len(app.images) - 1
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
@@ -136,7 +142,6 @@ calculate_display_size_with_zoom :: proc() -> Vec2 {
 
 	return {display_w, display_h}
 }
-
 
 load_config_file :: proc() {
 	config_path := fmt.tprintf("%sconfig.json", app.base_path)
@@ -180,11 +185,41 @@ save_config_file :: proc() {
 
 }
 
-get_config_dir :: proc() -> string {
-	xdg := os.get_env("XDG_CONFIG_HOME", context.allocator)
-	if xdg != "" {
-		return fmt.tprintf("%s/img_viewer/", xdg)
+get_config_dir :: proc() -> (path: string) {
+	//plataform agnostic????? i hope so
+	when ODIN_OS == .Windows {
+		appdata := os.get_env("LOCALAPPDATA", context.allocator)
+		if appdata != "" {
+			path, _ := filepath.join({appdata, "img_viewer"})
+			return path
+		}
+		appdata = os.get_env("APPDATA", context.allocator)
+		if appdata != "" {
+			path, _ := filepath.join({appdata, "img_viewer"})
+			return path
+		}
+		home := os.get_env("USERPROFILE", context.allocator)
+		if home != "" {
+			path, _ := filepath.join({home, ".config", "img_viewer"})
+			return path
+		}
+	} else when ODIN_OS == .Darwin {
+		home := os.get_env("HOME", context.allocator)
+		if home != "" {
+			path, _ := filepath.join({home, "Library", "Application Support", "img_viewer"})
+			return path
+		}
+	} else {
+		xdg := os.get_env("XDG_CONFIG_HOME", context.allocator)
+		if xdg != "" {
+			path, _ := filepath.join({xdg, "img_viewer"})
+			return path
+		}
+		home := os.get_env("HOME", context.allocator)
+		if home != "" {
+			path, _ := filepath.join({home, ".config", "img_viewer"})
+			return path
+		}
 	}
-	home := os.get_env("HOME", context.allocator)
-	return fmt.tprintf("%s/.config/img_viewer/", home)
+	return "./img_viewer"
 }

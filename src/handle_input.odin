@@ -43,12 +43,14 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 				case keybidings["prev_image"]:
 					previous_image()
 				case keybidings["detailed_view"]:
-                    app.show_details = !app.show_details
+					app.show_details = !app.show_details
 				case keybidings["toggle_dark_mode"]:
 					app.dark_mode = !app.dark_mode
-                    app.configs.ui.dark_mode = !app.configs.ui.dark_mode
-                case .C:
-                    app.show_config = !app.show_config
+					app.configs.ui.dark_mode = !app.configs.ui.dark_mode
+				case .C:
+					app.show_config = !app.show_config
+				case .K:
+					app.show_keys = !app.show_keys
 				}
 
 			case .MOUSE_WHEEL:
@@ -108,13 +110,15 @@ check_folder :: proc(path: string) {
 	}
 }
 
-Supported_formats :: enum {}
-
 handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
+	app.show_keys = false
 	spath := strings.clone_from_cstring(path, context.temp_allocator)
-	app.current_image = load_image(renderer, spath)
-	sdl.GetTextureSize(app.current_image, &img_original_size.x, &img_original_size.y)
-	get_file_info(spath)
+	load_image(renderer, spath)
+	sdl.GetTextureSize(
+		app.images[app.current_image].image,
+		&img_original_size.x,
+		&img_original_size.y,
+	)
 }
 
 handle_zoom :: proc(event: sdl.MouseWheelEvent) {
@@ -137,10 +141,10 @@ reset_zoom :: proc() {
 	app.should_redraw = true
 }
 
-get_file_info :: proc(path: string) {
-	if len(app.img_info_text) > 0 {
-		delete(app.img_info_text)
-	}
+get_file_info :: proc(path: string, image: ^Image) -> string {
+	// if len(app.img_info_text) > 0 {
+	// 	delete(app.img_info_text)
+	// }
 
 	file, err := os.stat(path, context.temp_allocator)
 	file_size_str: string
@@ -153,7 +157,8 @@ get_file_info :: proc(path: string) {
 	}
 
 	w, h: f32
-	sdl.GetTextureSize(app.current_image, &w, &h)
+
+	sdl.GetTextureSize(image.image, &w, &h)
 
 	resolution := fmt.tprintf("%vx%v", w, h)
 	file_size := file_size_str
@@ -174,8 +179,8 @@ get_file_info :: proc(path: string) {
 
 	}
 
-	app.img_info_text = fmt.aprintf("%s %s %s", file_size, display_name, resolution)
 	app.should_redraw = true
+	return fmt.aprintf("%s %s %s", file_size, display_name, resolution)
 }
 
 show_or_hide_ui :: proc() {
@@ -215,19 +220,17 @@ set_fullscreen :: proc(window: ^sdl.Window) {
 }
 
 next_image :: proc() {
-	if len(app.img_pool) > 0 {
-		app.current_image_index += 1
-		if app.current_image_index >= len(app.img_pool) do app.current_image_index = 0
-		app.current_image = app.img_pool[app.current_image_index]
+	if len(app.images) > 0 {
+		app.current_image += 1
+		if app.current_image >= len(app.images) do app.current_image = 0
 		app.should_redraw = true
 	}
 }
 
 previous_image :: proc() {
-	if len(app.img_pool) > 0 {
-		app.current_image_index -= 1
-		if app.current_image_index <= -1 do app.current_image_index = len(app.img_pool) - 1
-		app.current_image = app.img_pool[app.current_image_index]
+	if len(app.images) > 0 {
+		app.current_image -= 1
+		if app.current_image <= -1 do app.current_image = len(app.images) - 1
 		app.should_redraw = true
 	}
 }

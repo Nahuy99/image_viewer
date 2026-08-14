@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:path/filepath"
 import "core:strconv"
 import "core:strings"
 import im "shared:odin-imgui"
@@ -68,10 +69,10 @@ draw_config_ui :: proc() {
 		im.Checkbox("Dark Mode", &app.dark_mode)
 		app.configs.ui.dark_mode = app.dark_mode
 		im.InputFloat("Font_Size", &app.configs.ui.text_size, 1.0, format = "%.1f")
-        // im.ColorEdit3("Background Color", &test_color, color_flags)
+		// im.ColorEdit3("Background Color", &test_color, color_flags)
+		im.End()
 	}
 
-	im.End()
 	im.PopStyleColor(2)
 }
 
@@ -88,68 +89,58 @@ draw_detail_view :: proc() {
 	im.PushStyleColor(.Text, text_color)
 
 	if im.Begin("Detailed View", nil, {.NoTitleBar, .NoMove, .NoBringToFrontOnFocus}) {
+		im.End()
 	}
 
-	im.End()
 	im.PopStyleColor(2)
 }
 
-draw_top_ui :: proc() {
+draw_keybinds :: proc() {
 	viewport := im.GetMainViewport()
-	bar_height: f32 = 100.0
-	top_offset: f32 = bar_height / 2
-
-	button_size: f32 = 15
-
-	im.SetNextWindowPos({viewport.Pos.x, viewport.Pos.y - top_offset})
-	im.SetNextWindowSize({viewport.Size.x, bar_height})
+	box_size: [2]f32 = {800, 600}
 
 	bar_color :=
 		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.ui_bar_color_dark) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
 
+	text_color :=
+		app.dark_mode ? imgui_hex_string_to_u32(app.configs.ui.text_color_dark) : imgui_hex_string_to_u32(app.configs.ui.text_color)
+
 	im.PushStyleColor(.WindowBg, bar_color)
-	im.PushStyleVar(.WindowRounding, 20.0)
-	im.PushStyleVar(.WindowBorderSize, 0.0)
+	im.PushStyleColor(.Text, text_color)
+	im.SetNextWindowPos(
+		{viewport.Size.x / 2 - (box_size.x / 2), viewport.Size.y / 2 - (box_size.y / 2)},
+	)
+	im.SetNextWindowSize(box_size)
 
 	if im.Begin(
-		"TopBar",
+		"Keybindings",
 		nil,
 		{.NoTitleBar, .NoResize, .NoMove, .NoScrollbar, .NoBringToFrontOnFocus},
 	) {
-		im.SetCursorPosX(15.0)
-		im.SetCursorPosY(top_offset + 20.0)
-
-		im.PushStyleVar(.FrameRounding, 10.0)
-
-		im.PushStyleColor(.Button, hex_to_u32(0x403434))
-		if im.Button("##close", {button_size, button_size}) {
-			running = false
-		}
-		im.PopStyleColor()
-
-		im.SameLine()
-
-		im.PushStyleColor(.Button, hex_to_u32(0x65BF5E))
-		if im.Button("##mini", {button_size, button_size}) {
-			sdl.MinimizeWindow(app.window)
-		}
-		im.PopStyleColor()
-
-		im.SameLine()
-
-		im.PushStyleColor(.Button, hex_to_u32(0x5EBF9A))
-		if im.Button("##max", {button_size, button_size}) {
-			set_fullscreen(app.window)
-		}
-		im.PopStyleColor()
-
-		im.PopStyleVar()
+		centered_text("KEYBINDINGS: ")
+		centered_text("Toggle Keybindings Menu: 'K'")
+		centered_text("Toggle Dark Mode: 'G'")
+		centered_text("Toggle Fullscreen : 'F'")
+		centered_text("Toggle Detailed View : 'D'")
+		centered_text("Toggle Config Box : 'C'")
+		centered_text("Previuous Image : 'P'")
+		centered_text("Next Image : 'N'")
 
 		im.End()
 	}
-	im.PopStyleVar(2)
-	im.PopStyleColor(1)
 
+	im.PopStyleColor(2)
+}
+
+centered_text :: proc(text: cstring) {
+	window_w := im.GetWindowWidth()
+	text_w := im.CalcTextSize(text).x
+	offset: f32 = (window_w - text_w) / 2
+
+	if offset < 10.0 do offset = 10.0
+
+	im.SetCursorPosX(offset)
+	im.Text(text)
 }
 
 draw_bottom_ui :: proc() {
@@ -177,7 +168,17 @@ draw_bottom_ui :: proc() {
 
 		im.SetCursorPosY(15.0)
 
-		im.TextUnformatted(strings.clone_to_cstring(app.img_info_text, context.temp_allocator))
+		if len(app.images) > 0 {
+			im.TextUnformatted(
+				strings.clone_to_cstring(
+					app.images[app.current_image].info,
+					context.temp_allocator,
+				),
+			)
+		} else {
+			im.TextUnformatted("DROP IMAGE ON THE APP")
+		}
+
 
 		zoom_str := fmt.tprintf("%.0f%%", app.zoom_level * 100)
 		zoom_width := im.CalcTextSize(strings.clone_to_cstring(zoom_str, context.temp_allocator)).x
@@ -187,13 +188,13 @@ draw_bottom_ui :: proc() {
 
 		im.SameLine(right_pos)
 		im.TextUnformatted(strings.clone_to_cstring(zoom_str, context.temp_allocator))
+		im.End()
 	}
-	im.End()
 	im.PopStyleColor(2)
 }
 
 load_font :: proc(renderer: ^sdl.Renderer, io: ^im.IO) {
-	font_path := fmt.tprintf("%s%s", app.font_path, app.configs.ui.font)
+	font_path, err := filepath.join({app.font_path, app.configs.ui.font})
 	app.ui_font = im.FontAtlas_AddFontFromFileTTF(
 		io.Fonts,
 		strings.clone_to_cstring(font_path, context.temp_allocator),

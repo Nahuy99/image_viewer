@@ -5,9 +5,8 @@ import im_sdl "shared:odin-imgui/imgui_impl_sdl3"
 import im_sdlr "shared:odin-imgui/imgui_impl_sdlrenderer3"
 import sdl "vendor:sdl3"
 
-render :: proc(renderer: ^sdl.Renderer, texture: ^sdl.Texture, window: ^sdl.Window) {
+render :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	bg_color := app.dark_mode ? app.configs.ui.bg_color_dark : app.configs.ui.bg_color
-
 	bg_hex := hex_string_to_u32(bg_color)
 
 	r := u8((bg_hex >> 16) & 0xFF)
@@ -32,7 +31,7 @@ render :: proc(renderer: ^sdl.Renderer, texture: ^sdl.Texture, window: ^sdl.Wind
 		h = app.display_size.y,
 	}
 
-	sdl.RenderTexture(renderer, texture, nil, &destination_rec)
+	if len(app.images) > 0 do sdl.RenderTexture(renderer, app.images[app.current_image].image, nil, &destination_rec)
 
 	im.Render()
 	im_sdlr.RenderDrawData(im.GetDrawData(), renderer)
@@ -47,10 +46,11 @@ render_imgui :: proc(renderer: ^sdl.Renderer) {
 	if ui_is_visible {
 
 		im.PushFontFloat(app.ui_font, app.configs.ui.text_size)
+		if app.show_keys do draw_keybinds()
 		if app.show_config do draw_config_ui()
 		if app.show_details do draw_detail_view()
 		draw_bottom_ui()
 
-        im.PopFont()
+		im.PopFont()
 	}
 }
