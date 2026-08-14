@@ -17,7 +17,7 @@ jobs:
 
       - name: Push to Forgejo
         run: |
-          git remote add forgejo https://x-access-token:${{ secrets.FORGEJO_TOKEN }}@${{ vars.FORGEJO_HOST }}/${{ github.repository }}.git
+          git remote add forgejo https://x-access-token:${{ secrets.FORGEJO_TOKEN }}@${{ vars.FORGEJO_HOST }}/nahuel/image_viewer.git
 
           git push forgejo --all --force
 
