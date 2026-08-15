@@ -44,25 +44,51 @@ imgui_hex_string_to_u32 :: proc(hex_string: string) -> u32 {
 
 draw_config_ui :: proc() {
 	viewport := im.GetMainViewport()
+	size: Vec2 = {340, 50}
+	pos: Vec2 = {30, 30}
 
-	im.PushStyleColor(.WindowBg, app.configs.bar_color)
-	im.PushStyleColor(.Text, app.configs.text_color)
+	drop_shadow({10, 10}, size, pos, "Drop Shadow Config")
+	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
 
-	if im.Begin("Config Box", nil, {.NoTitleBar, .NoMove, .NoBringToFrontOnFocus}) {
+	if im.Begin("Config Box", nil, {.NoTitleBar, .NoMove, .NoResize}) {
+		im.SetNextItemWidth(150)
 		im.InputFloat("Font_Size", &app.configs.ui.text_size, 1.0, format = "%.1f")
 		im.End()
 	}
-
 	im.PopStyleColor(2)
 }
 
 draw_detail_view :: proc() {
 	viewport := im.GetMainViewport()
+	size: Vec2 = {600, 200}
+	if len(app.images) > 0 {
+		name_size := im.CalcTextSize(app.images[app.current_image].info.name).x + 30
+		last_mod_size := im.CalcTextSize(app.images[app.current_image].info.modification).x + 30
+		if last_mod_size > name_size do size.x = last_mod_size
+		else do size.x = name_size
+	}
+	offset: Vec2 = {30, 30}
+	pos := app.show_config ? viewport.Pos + {offset.x, offset.y + 100} : viewport.Pos + offset
 
-	im.PushStyleColor(.WindowBg, app.configs.bar_color)
-	im.PushStyleColor(.Text, app.configs.text_color)
+	drop_shadow({20, 20}, size, pos, "Detail Drop Shadow")
 
-	if im.Begin("Detailed View", nil, {.NoTitleBar, .NoMove, .NoBringToFrontOnFocus}) {
+	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
+
+	if im.Begin(
+		"Detailed View",
+		nil,
+		{.NoTitleBar, .NoMove, .NoResize, .NoScrollbar, .NoScrollWithMouse},
+	) {
+		if len(app.images) > 0 {
+			im.TextUnformatted(app.images[app.current_image].info.name)
+			im.TextUnformatted(app.images[app.current_image].info.ext)
+			im.TextUnformatted(app.images[app.current_image].info.size)
+			im.TextUnformatted(app.images[app.current_image].info.resolution)
+			im.TextUnformatted(app.images[app.current_image].info.created)
+			im.TextUnformatted(app.images[app.current_image].info.modification)
+		} else {
+			im.TextUnformatted("Drop an image to see the details")
+		}
 		im.End()
 	}
 
@@ -71,34 +97,11 @@ draw_detail_view :: proc() {
 
 draw_keybinds :: proc() {
 	viewport := im.GetMainViewport()
-	box_size: Vec2 = {800, 600}
-	shadow_offset: Vec2 = {20, 20}
+	size: Vec2 = {800, 600}
+	pos: Vec2 = {viewport.Size.x / 2 - (size.x / 2), viewport.Size.y / 2 - (size.y / 2)}
 
-	shadow_pos: Vec2 = {
-		viewport.Size.x / 2 - (box_size.x / 2) + shadow_offset.x,
-		viewport.Size.y / 2 - (box_size.y / 2) + shadow_offset.y,
-	}
-
-	im.SetNextWindowPos(shadow_pos)
-	im.SetNextWindowSize(box_size)
-	im.PushStyleColor(.WindowBg, app.configs.shadow_color)
-
-	if im.Begin(
-		"KeybindingsShadow",
-		nil,
-		{.NoTitleBar, .NoResize, .NoMove, .NoScrollbar, .NoBringToFrontOnFocus, .NoNavInputs},
-	) {
-		im.End()
-	}
-
-	im.PopStyleColor()
-
-	im.PushStyleColor(.WindowBg, app.configs.bar_color)
-	im.PushStyleColor(.Text, app.configs.text_color)
-	im.SetNextWindowPos(
-		{viewport.Size.x / 2 - (box_size.x / 2), viewport.Size.y / 2 - (box_size.y / 2)},
-	)
-	im.SetNextWindowSize(box_size)
+	drop_shadow({20, 20}, size, pos, "Keybinds Drop Shadow")
+	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
 
 	if im.Begin("Keybindings", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
 		centered_text("KEYBINDINGS: ")
@@ -109,50 +112,30 @@ draw_keybinds :: proc() {
 		centered_text("Toggle Config Box : 'C'")
 		centered_text("Previuous Image : 'P'")
 		centered_text("Next Image : 'N'")
-
 		im.End()
 	}
 
 	im.PopStyleColor(2)
 }
 
-centered_text :: proc(text: cstring) {
-	window_w := im.GetWindowWidth()
-	text_w := im.CalcTextSize(text).x
-	offset: f32 = (window_w - text_w) / 2
-
-	if offset < 10.0 do offset = 10.0
-
-	im.SetCursorPosX(offset)
-	im.Text(text)
-}
-
 draw_bottom_ui :: proc() {
 	viewport := im.GetMainViewport()
 	bar_height: f32 = 100.0
 	top_offset: f32 = bar_height / 2
+	pos: Vec2 = {viewport.Pos.x, viewport.Size.y - top_offset}
+	size: Vec2 = {viewport.Size.x, bar_height}
 
-	im.SetNextWindowPos({viewport.Pos.x, viewport.Size.y - top_offset})
-	im.SetNextWindowSize({viewport.Size.x, bar_height})
-
-	im.PushStyleColor(.WindowBg, app.configs.bar_color)
-	im.PushStyleColor(.Text, app.configs.text_color)
+	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
 
 	if im.Begin("BottomBar", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
 
 		im.SetCursorPosY(15.0)
 
 		if len(app.images) > 0 {
-			im.TextUnformatted(
-				strings.clone_to_cstring(
-					app.images[app.current_image].info,
-					context.temp_allocator,
-				),
-			)
+			im.TextUnformatted(app.images[app.current_image].info.handle)
 		} else {
 			im.TextUnformatted("DROP IMAGE ON THE APP")
 		}
-
 
 		zoom_str := fmt.tprintf("%.0f%%", app.zoom_level * 100)
 		zoom_width := im.CalcTextSize(strings.clone_to_cstring(zoom_str, context.temp_allocator)).x
@@ -177,4 +160,38 @@ load_font :: proc(renderer: ^sdl.Renderer, io: ^im.IO) {
 	if app.ui_font == nil {
 		fmt.println("Failed to load font!")
 	}
+}
+
+setup_window :: proc(color, text_color: u32, pos, size: Vec2) {
+	im.PushStyleColor(.WindowBg, color)
+	im.PushStyleColor(.Text, text_color)
+	im.SetNextWindowPos(pos)
+	im.SetNextWindowSize(size)
+}
+
+drop_shadow :: proc(offset, box_size, box_pos: Vec2, name: cstring) {
+	shadow_pos := box_pos + offset
+
+	im.SetNextWindowPos(shadow_pos)
+	im.SetNextWindowSize(box_size)
+	im.PushStyleColor(.WindowBg, app.configs.shadow_color)
+	if im.Begin(
+		name,
+		nil,
+		{.NoTitleBar, .NoResize, .NoMove, .NoScrollbar, .NoBringToFrontOnFocus, .NoNavInputs},
+	) {
+		im.End()
+	}
+	im.PopStyleColor()
+}
+
+centered_text :: proc(text: cstring) {
+	window_w := im.GetWindowWidth()
+	text_w := im.CalcTextSize(text).x
+	offset: f32 = (window_w - text_w) / 2
+
+	if offset < 10.0 do offset = 10.0
+
+	im.SetCursorPosX(offset)
+	im.Text(text)
 }

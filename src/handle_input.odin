@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:time"
 import im_sdl "shared:odin-imgui/imgui_impl_sdl3"
 import sdl "vendor:sdl3"
 
@@ -45,7 +46,7 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 				case keybidings["detailed_view"]:
 					app.show_details = !app.show_details
 				case keybidings["toggle_dark_mode"]:
-                    toggle_dark_mode()
+					toggle_dark_mode()
 				case .C:
 					app.show_config = !app.show_config
 				case .K:
@@ -97,22 +98,11 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 	}
 }
 
-// check_folder :: proc(path: string) {
-// 	all_files, err := os.read_all_directory_by_path(path, context.temp_allocator)
-// 	if err != nil {
-// 		fmt.println("Error parsing file path")
-// 	}
-// 	for file in all_files {
-// 		if filepath.ext(file.name) == ".png" {
-// 			fmt.println(file.name)
-// 		}
-// 	}
-// }
-
 handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	app.show_keys = false
 	spath := strings.clone_from_cstring(path, context.temp_allocator)
 	load_image(renderer, spath)
+	// fmt.println(app.images[app.current_image].info)
 	sdl.GetTextureSize(
 		app.images[app.current_image].image,
 		&app.images[app.current_image].size.x,
@@ -140,8 +130,11 @@ reset_zoom :: proc() {
 	app.should_redraw = true
 }
 
-get_file_info :: proc(path: string, image: ^Image) -> string {
+get_file_info :: proc(path: string, image: ^Image) -> Image_Info {
+	info: Image_Info
+	// file load
 	file, err := os.stat(path, context.temp_allocator)
+	// size
 	file_size_str: string
 	if err == nil {
 		if file.size < 1024 * 1024 {
@@ -150,31 +143,66 @@ get_file_info :: proc(path: string, image: ^Image) -> string {
 			file_size_str = fmt.tprintf("%0.1fM", f64(file.size) / (1024 * 1024))
 		}
 	}
+	info.size = strings.clone_to_cstring(file_size_str, context.allocator)
 
+
+	// resolution
 	w, h: f32
-
 	sdl.GetTextureSize(image.image, &w, &h)
+	info.resolution = fmt.caprintf("%vx%v", w, h)
 
-	resolution := fmt.tprintf("%vx%v", w, h)
-	file_size := file_size_str
-	max_file_name := 15
+	//name
+	max_file_name := 25
 	file_name := filepath.base(path)
 	file_extention := filepath.ext(path)
 	file_stem := filepath.stem(file_name)
+	formated_ext, _ := strings.remove(file_extention, ".", 1, context.temp_allocator)
+    info.ext = strings.clone_to_cstring(formated_ext, context.allocator)
 
-	display_name := file_name
+	info.name = strings.clone_to_cstring(file_stem, context.allocator)
 
+    //dates
+	year, month, day := time.date(file.modification_time)
+	hour, min, sec := time.clock_from_time(file.modification_time)
+
+	info.modification = fmt.caprintf(
+		"Last Modified: %d-%02d-%02d %02d:%02d:%02d",
+		year,
+		int(month),
+		day,
+		hour,
+		min,
+		sec,
+	)
+	//reuzing the variables from modified
+	year, month, day = time.date(file.creation_time)
+	hour, min, sec = time.clock_from_time(file.creation_time)
+
+	info.created = fmt.caprintf(
+		"Created: %d-%02d-%02d %02d:%02d:%02d",
+		year,
+		int(month),
+		day,
+		hour,
+		min,
+		sec,
+	)
+
+	abreviated_name: cstring
 	if len(file_stem) > max_file_name {
-		display_name = fmt.tprintf(
+		abreviated_name = fmt.caprintf(
 			"%s...%s%s",
 			file_stem[:10],
 			file_stem[len(file_stem) - 3:],
 			file_extention,
 		)
+	} else {
+		abreviated_name = info.name
 	}
 
+	info.handle = fmt.caprintf("%s  %s  %s", info.size, abreviated_name, info.resolution)
 	app.should_redraw = true
-	return fmt.aprintf("%s %s %s", file_size, display_name, resolution)
+	return info
 }
 
 show_or_hide_ui :: proc() {
@@ -232,6 +260,6 @@ previous_image :: proc() {
 toggle_dark_mode :: proc() {
 	app.dark_mode = !app.dark_mode
 	app.configs.ui.dark_mode = !app.configs.ui.dark_mode
-    setup_colors()
-    app.should_redraw = true
+	setup_colors()
+	app.should_redraw = true
 }

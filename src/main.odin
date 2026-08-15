@@ -25,7 +25,7 @@ main :: proc() {
 
 	load_config_file()
 	setup_bindings()
-    app.dark_mode = app.configs.ui.dark_mode
+	app.dark_mode = app.configs.ui.dark_mode
 	setup_colors()
 	init_app(&app)
 
@@ -98,17 +98,23 @@ quit :: proc() {
 		if img.image != nil {
 			sdl.DestroyTexture(img.image)
 		}
-		delete(img.info)
+		if img.info.ext != "" do delete(img.info.ext)
+		if img.info.name != "" do delete(img.info.name)
+		if img.info.size != "" do delete(img.info.size)
+		if img.info.handle != "" do delete(img.info.handle)
+		if img.info.created != "" do delete(img.info.created)
+		if img.info.resolution != "" do delete(img.info.resolution)
+		if img.info.modification != "" do delete(img.info.modification)
 	}
 
 	delete(app.images)
 	delete(keybidings)
-    
-    // free paths 
-    delete(app.base_path)
+
+	// free paths
+	delete(app.base_path)
 	delete(app.font_path)
 	delete(app.config_file_path)
-    //
+	//
 	sdl.DestroyRenderer(app.renderer)
 	sdl.DestroyWindow(app.window)
 	im_sdl.Shutdown()

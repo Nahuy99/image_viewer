@@ -1,5 +1,6 @@
 package main
 
+import "core:time"
 import im "shared:odin-imgui"
 import sdl "vendor:sdl3"
 
@@ -32,8 +33,18 @@ App :: struct {
 Image :: struct {
 	image: ^sdl.Texture,
 	index: int,
-	info:  string,
+	info:  Image_Info,
 	size:  Vec2,
+}
+
+Image_Info :: struct {
+	name:         cstring,
+	size:         cstring,
+	resolution:   cstring,
+	created:      cstring,
+	modification: cstring,
+	ext:          cstring,
+	handle:       cstring,
 }
 
 app: App
