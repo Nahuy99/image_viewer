@@ -51,6 +51,8 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 					app.show_config = !app.show_config
 				case .K:
 					app.show_keys = !app.show_keys
+				case .B:
+					app.show_side_ui = !app.show_side_ui
 				}
 
 			case .MOUSE_WHEEL:
@@ -157,11 +159,11 @@ get_file_info :: proc(path: string, image: ^Image) -> Image_Info {
 	file_extention := filepath.ext(path)
 	file_stem := filepath.stem(file_name)
 	formated_ext, _ := strings.remove(file_extention, ".", 1, context.temp_allocator)
-    info.ext = strings.clone_to_cstring(formated_ext, context.allocator)
+	info.ext = strings.clone_to_cstring(formated_ext, context.allocator)
 
 	info.name = strings.clone_to_cstring(file_stem, context.allocator)
 
-    //dates
+	//dates
 	year, month, day := time.date(file.modification_time)
 	hour, min, sec := time.clock_from_time(file.modification_time)
 
@@ -246,6 +248,7 @@ next_image :: proc() {
 		app.current_image += 1
 		if app.current_image >= len(app.images) do app.current_image = 0
 		app.should_redraw = true
+        reset_zoom()
 	}
 }
 
@@ -254,6 +257,7 @@ previous_image :: proc() {
 		app.current_image -= 1
 		if app.current_image <= -1 do app.current_image = len(app.images) - 1
 		app.should_redraw = true
+        reset_zoom()
 	}
 }
 

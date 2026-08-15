@@ -34,7 +34,7 @@ main :: proc() {
 		fmt.println("Error while creating window: ", sdl.GetError())
 	}
 
-	app.window = sdl.CreateWindow("Image Viewer", 1280, 720, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
+	app.window = sdl.CreateWindow("Image Viewer", 1920, 1080, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
 	defer sdl.DestroyWindow(app.window)
 
 	app.renderer = sdl.CreateRenderer(app.window, nil)
@@ -135,6 +135,15 @@ init_imgui :: proc(window: ^sdl.Window, renderer: ^sdl.Renderer) {
 
 load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 	//todo get a path as a folder and check every image inside it to load inside the img pool array
+
+    file_stem := filepath.stem(filepath.base(path))
+	for image in app.images {
+		if string(image.info.name) == file_stem {
+			set_current_image(image.index)
+			return
+		}
+	}
+
 	image: Image
 	c_path := strings.clone_to_cstring(path, context.temp_allocator)
 
@@ -155,14 +164,13 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 	w, h: f32
 	sdl.GetTextureSize(texture, &w, &h)
 
-	if len(app.images) > 0 {
-		app.images[app.current_image].size.x = w
-		app.images[app.current_image].size.y = h
-	}
+    image.size.x = w
+    image.size.y = h
 
 	image.image = texture
 	image.index = len(app.images)
 	image.info = get_file_info(path, &image)
+
 	append(&app.images, image)
 	app.current_image = len(app.images) - 1
 }

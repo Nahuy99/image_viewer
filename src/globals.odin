@@ -28,6 +28,7 @@ App :: struct {
 	show_config:         bool,
 	show_details:        bool,
 	show_keys:           bool,
+	show_side_ui:        bool,
 }
 
 Image :: struct {
@@ -58,38 +59,44 @@ init_app :: proc(app: ^App) {
 }
 
 App_Config :: struct {
-	ui:           UI_Config `json:"ui"`,
-	keybidings:   Keybidings_Config `json:"keybinds"`,
-	colors:       Colors_Config `json:colors`,
-	bar_color:    u32,
-	text_color:   u32,
-	shadow_color: u32,
-	bkg_color:    string,
+	ui:                  UI_Config `json:"ui"`,
+	keybidings:          Keybidings_Config `json:"keybinds"`,
+	colors:              Colors_Config `json:colors`,
+	bar_color:           u32,
+	text_color:          u32,
+	shadow_color:        u32,
+	accent:              u32,
+	button_color:        u32,
+	button_active_color: u32,
+	image_selected:      u32,
+	bkg_color:           string,
 }
 
 Colors_Config :: struct {
-	black:   string `json:black`,
-	cinder:  string `json:cinder`,
-	ember:   string `json:ember`,
-	brass:   string `json:brass`,
-	sap:     string `json:sap`,
-	frost:   string `json:frost`,
-	fg:      string `json:fg`,
-	fg_dim:  string `json:fg_dim`,
-	comment: string `json:comment`,
-	gutter:  string `json:gutter`,
-	bg_deep: string `json:bg_deep`,
-	bg0:     string `json:bg0`,
-	bg1:     string `json:bg1`,
-	bg2:     string `json:bg2`,
-	bg3:     string `json:bg3`,
-	bg4:     string `json:bg4`,
-	bg5:     string `json:bg5`,
-	error:   string `json:error`,
-	warning: string `json:warning`,
-	ok:      string `json:ok`,
-	hint:    string `json:hint`,
-	info:    string `json:info`,
+	black:       string `json:black`,
+	cinder:      string `json:cinder`,
+	ember:       string `json:ember`,
+	brass:       string `json:brass`,
+	sap:         string `json:sap`,
+	frost:       string `json:frost`,
+	fg:          string `json:fg`,
+	fg_dim:      string `json:fg_dim`,
+	comment:     string `json:comment`,
+	gutter:      string `json:gutter`,
+	bg_deep:     string `json:bg_deep`,
+	bg0:         string `json:bg0`,
+	bg1:         string `json:bg1`,
+	bg2:         string `json:bg2`,
+	bg3:         string `json:bg3`,
+	bg4:         string `json:bg4`,
+	bg5:         string `json:bg5`,
+	error:       string `json:error`,
+	warning:     string `json:warning`,
+	ok:          string `json:ok`,
+	hint:        string `json:hint`,
+	info:        string `json:info`,
+	accent:      string `json:accent`,
+	accent_dark: string `json:accent_dark`,
 }
 
 Keybidings_Config :: struct {
@@ -160,6 +167,8 @@ default_configs: App_Config = {
 		ok = "43b16a",
 		hint = "20c9cb",
 		info = "58bdff",
+		accent = "8F4747",
+		accent_dark = "3c687b",
 	},
 }
 
@@ -186,6 +195,8 @@ free_config_varialbes :: proc() {
 	delete(app.configs.colors.ok)
 	delete(app.configs.colors.sap)
 	delete(app.configs.colors.warning)
+	delete(app.configs.colors.accent)
+	delete(app.configs.colors.accent_dark)
 
 	delete(app.configs.ui.bg_color)
 	delete(app.configs.ui.bg_color_dark)
@@ -206,11 +217,19 @@ free_config_varialbes :: proc() {
 }
 
 setup_colors :: proc() {
-	app.configs.bkg_color = app.dark_mode ? app.configs.ui.bg_color_dark : app.configs.colors.fg
+	app.configs.bkg_color = app.dark_mode ? app.configs.colors.bg2 : app.configs.colors.fg
 	app.configs.bar_color =
 		app.dark_mode ? imgui_hex_string_to_u32(app.configs.colors.frost) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
 	app.configs.text_color =
 		app.dark_mode ? imgui_hex_string_to_u32(app.configs.colors.fg) : imgui_hex_string_to_u32(app.configs.colors.fg)
 	app.configs.shadow_color =
-		app.dark_mode ? imgui_hex_string_to_u32(app.configs.colors.bg4) : imgui_hex_string_to_u32(app.configs.ui.bg_color_dark)
+		app.dark_mode ? imgui_hex_string_to_u32(app.configs.colors.bg1) : imgui_hex_string_to_u32(app.configs.ui.bg_color_dark)
+	app.configs.accent =
+		app.dark_mode ? imgui_hex_string_to_u32(app.configs.colors.accent_dark) : imgui_hex_string_to_u32(app.configs.colors.accent)
+	app.configs.button_color =
+		app.dark_mode ? imgui_hex_string_to_u32("2f5160") : imgui_hex_string_to_u32("6B3636")
+	app.configs.button_active_color = imgui_hex_string_to_u32(app.configs.colors.ember)
+	app.configs.image_selected =
+		app.dark_mode ? imgui_hex_string_to_u32("223b46") : imgui_hex_string_to_u32("532929")
 }
+

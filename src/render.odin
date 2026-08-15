@@ -48,6 +48,7 @@ render_imgui :: proc(renderer: ^sdl.Renderer) {
 		if app.show_keys do draw_keybinds()
 		if app.show_config do draw_config_ui()
 		if app.show_details do draw_detail_view()
+        if app.show_side_ui do draw_side_ui()
 		draw_bottom_ui()
 
 		im.PopFont()

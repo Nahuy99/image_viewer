@@ -44,8 +44,12 @@ imgui_hex_string_to_u32 :: proc(hex_string: string) -> u32 {
 
 draw_config_ui :: proc() {
 	viewport := im.GetMainViewport()
+	side_ui := im.FindWindowByName("SideBar")
+	side_ui_w: f32
+	if side_ui != nil do side_ui_w = side_ui.Size.x
+
 	size: Vec2 = {340, 50}
-	pos: Vec2 = {30, 30}
+	pos: Vec2 = app.show_side_ui ? {side_ui_w + 30, 30} : {30, 30}
 
 	drop_shadow({10, 10}, size, pos, "Drop Shadow Config")
 	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
@@ -61,14 +65,19 @@ draw_config_ui :: proc() {
 draw_detail_view :: proc() {
 	viewport := im.GetMainViewport()
 	size: Vec2 = {600, 200}
+	side_ui := im.FindWindowByName("SideBar")
+	side_ui_w: f32
+	if side_ui != nil do side_ui_w = side_ui.Size.x
+
 	if len(app.images) > 0 {
 		name_size := im.CalcTextSize(app.images[app.current_image].info.name).x + 30
 		last_mod_size := im.CalcTextSize(app.images[app.current_image].info.modification).x + 30
 		if last_mod_size > name_size do size.x = last_mod_size
 		else do size.x = name_size
 	}
-	offset: Vec2 = {30, 30}
-	pos := app.show_config ? viewport.Pos + {offset.x, offset.y + 100} : viewport.Pos + offset
+
+	offset: Vec2 = {app.show_side_ui ? side_ui_w + 30 : 30, app.show_config ? 130 : 30}
+	pos := viewport.Pos + offset
 
 	drop_shadow({20, 20}, size, pos, "Detail Drop Shadow")
 
@@ -106,6 +115,7 @@ draw_keybinds :: proc() {
 	if im.Begin("Keybindings", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
 		centered_text("KEYBINDINGS: ")
 		centered_text("Toggle Keybindings Menu: 'K'")
+		centered_text("Toggle Side Bar : 'B'")
 		centered_text("Toggle Dark Mode: 'G'")
 		centered_text("Toggle Fullscreen : 'F'")
 		centered_text("Toggle Detailed View : 'D'")
@@ -115,6 +125,52 @@ draw_keybinds :: proc() {
 		im.End()
 	}
 
+	im.PopStyleColor(2)
+}
+
+draw_side_ui :: proc() {
+	viewport := im.GetMainViewport()
+	pos: Vec2 = {20, 30}
+	size: Vec2
+
+	bottom_bar := im.FindWindowByName("BottomBar")
+	if bottom_bar != nil {
+		bottom_bar_height := bottom_bar.Size.y
+		size = {600, viewport.Size.y - bottom_bar_height}
+	} else do size = {600, viewport.Size.y}
+
+	drop_shadow({20, 15}, size, pos, "Drop Shadow Side Ui")
+
+	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
+	if im.Begin("SideBar", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
+		im.PushStyleColor(.ChildBg, app.configs.accent)
+		if im.BeginChild("Currently Open", {0, 0}, {.Borders}) {
+			centered_text("currently opened images")
+			if len(app.images) > 0 {
+				im.PushStyleColor(.Button, app.configs.button_color)
+				im.PushStyleColor(.ButtonHovered, app.configs.bar_color)
+				im.PushStyleColor(.ButtonActive, app.configs.button_active_color)
+				for image in app.images {
+					is_selected := image.index == app.current_image
+					if is_selected {
+						im.PushStyleColor(.Button, app.configs.image_selected)
+					}
+					if centered_button(image.info.name) {
+						set_current_image(image.index)
+						reset_zoom()
+					}
+					if is_selected {
+                        im.PopStyleColor(1)
+					}
+				}
+				im.PopStyleColor(3)
+			}
+		}
+		im.EndChild()
+		im.PopStyleColor()
+
+		im.End()
+	}
 	im.PopStyleColor(2)
 }
 
@@ -162,6 +218,10 @@ load_font :: proc(renderer: ^sdl.Renderer, io: ^im.IO) {
 	}
 }
 
+set_current_image :: proc(index: int) {
+	app.current_image = index
+}
+
 setup_window :: proc(color, text_color: u32, pos, size: Vec2) {
 	im.PushStyleColor(.WindowBg, color)
 	im.PushStyleColor(.Text, text_color)
@@ -194,4 +254,13 @@ centered_text :: proc(text: cstring) {
 
 	im.SetCursorPosX(offset)
 	im.Text(text)
+}
+
+centered_button :: proc(label: cstring, offset: f32 = 0) -> bool {
+	style := im.GetStyle()
+	text_width := im.CalcTextSize(label).x
+	button_width := text_width + style.FramePadding.x * 2
+	avail_width := im.GetContentRegionAvail().x
+	im.SetCursorPosX(max(0, (avail_width - button_width) * 0.5 + offset))
+	return im.Button(label)
 }
