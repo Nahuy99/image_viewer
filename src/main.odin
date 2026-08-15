@@ -50,7 +50,9 @@ main :: proc() {
 	if len(os.args) > 1 {
 		app.show_keys = false
 		initial_path := os.args[1]
-		load_image(app.renderer, initial_path)
+		dir := os.is_dir(initial_path)
+		if !dir do load_image(app.renderer, initial_path)
+		else do load_dir_images(app.renderer, initial_path)
 	}
 
 	init_imgui(app.window, app.renderer)
@@ -133,10 +135,17 @@ init_imgui :: proc(window: ^sdl.Window, renderer: ^sdl.Renderer) {
 	im_sdlr.Init(renderer)
 }
 
-load_image :: proc(renderer: ^sdl.Renderer, path: string) {
-	//todo get a path as a folder and check every image inside it to load inside the img pool array
+// load the full directory of images
+load_dir_images :: proc(renderer: ^sdl.Renderer, path: string) {
+	files, err := os.read_all_directory_by_path(path, context.temp_allocator)
+	for file in files {
+		load_image(renderer, file.fullpath)
+	}
+    app.current_image = 0
+}
 
-    file_stem := filepath.stem(filepath.base(path))
+load_image :: proc(renderer: ^sdl.Renderer, path: string) {
+	file_stem := filepath.stem(filepath.base(path))
 	for image in app.images {
 		if string(image.info.name) == file_stem {
 			set_current_image(image.index)
@@ -164,8 +173,8 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 	w, h: f32
 	sdl.GetTextureSize(texture, &w, &h)
 
-    image.size.x = w
-    image.size.y = h
+	image.size.x = w
+	image.size.y = h
 
 	image.image = texture
 	image.index = len(app.images)

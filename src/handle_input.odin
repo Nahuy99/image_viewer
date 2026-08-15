@@ -103,13 +103,9 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
 	app.show_keys = false
 	spath := strings.clone_from_cstring(path, context.temp_allocator)
-	load_image(renderer, spath)
-	// fmt.println(app.images[app.current_image].info)
-	sdl.GetTextureSize(
-		app.images[app.current_image].image,
-		&app.images[app.current_image].size.x,
-		&app.images[app.current_image].size.y,
-	)
+	dir := os.is_dir(spath)
+	if dir do load_dir_images(renderer, spath)
+    else do load_image(renderer, spath)
 }
 
 handle_zoom :: proc(event: sdl.MouseWheelEvent) {
@@ -248,7 +244,7 @@ next_image :: proc() {
 		app.current_image += 1
 		if app.current_image >= len(app.images) do app.current_image = 0
 		app.should_redraw = true
-        reset_zoom()
+		reset_zoom()
 	}
 }
 
@@ -257,7 +253,7 @@ previous_image :: proc() {
 		app.current_image -= 1
 		if app.current_image <= -1 do app.current_image = len(app.images) - 1
 		app.should_redraw = true
-        reset_zoom()
+		reset_zoom()
 	}
 }
 
