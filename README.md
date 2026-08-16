@@ -1,23 +1,11 @@
-Simple image viewer made with Odin and SDL3
+# A simple image viewer made with Odin, SDL3, and IMGUI bindings
 
-It was made for learning the language and the sdl api,
-Configuration via the config.json
+It's a dumb project that was made with the intent of learning Odin and its bindings 
+The "ui" was 100% based on the [NSXIV](https://github.com/nsxiv/nsxiv) project
 
-the "ui" was 100% based on the [NSXIV](https://github.com/nsxiv/nsxiv) project
-
-Build yourself:
-
-Just run the commands in the build_commands.txt
-
-Dependencies for building it yourself:
-[Odin Language](https://odin-lang.org/)
-[SDL3](https://github.com/libsdl-org/SDL)
-SDL3 Image
-[Imgui](https://github.com/ocornut/imgui/tree/master), i had to implement the SDL 3 Renderer bindings myself for Windows and Linux from C++, 
-i might upload it once i figure out how, i cant know if it works on Macos
-
-On windoows you need to have the sdl3 dlls in either in the project root
-or in the System32 folder.
-
-
+## Features
+ * It's an image viewer, it displays images you can drag and drop them in the app
+## This is what it looks like
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/e2ce7f1a-777b-4884-8cb5-1452fbb8e011" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/5e38406d-215f-48ef-a6bf-3751e0107f01" />
 
