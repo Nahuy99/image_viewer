@@ -144,7 +144,7 @@ draw_side_ui :: proc() {
 	setup_window(app.configs.bar_color, app.configs.text_color, pos, size)
 	if im.Begin("SideBar", nil, {.NoTitleBar, .NoResize, .NoMove, .NoScrollbar}) {
 		im.PushStyleColor(.ChildBg, app.configs.accent)
-		if im.BeginChild("Currently Open", {0, 0}, {.Borders}) {
+		if im.BeginChild("Currently Open", {0, viewport.Size.y / 2}, {.Borders}) {
 			centered_text("currently opened images")
 			if len(app.images) > 0 {
 				im.PushStyleColor(.Button, app.configs.button_color)
@@ -160,15 +160,31 @@ draw_side_ui :: proc() {
 						reset_zoom()
 					}
 					if is_selected {
-                        im.PopStyleColor(1)
+						im.PopStyleColor(1)
 					}
 				}
 				im.PopStyleColor(3)
 			}
+			im.EndChild()
 		}
-		im.EndChild()
-		im.PopStyleColor()
 
+		if im.BeginChild("Recently Open", {0, 0}, {.Borders}) {
+			centered_text("recently opened imags")
+			if len(app.recent) > 0 {
+				im.PushStyleColor(.ButtonHovered, app.configs.bar_color)
+				im.PushStyleColor(.ButtonActive, app.configs.button_active_color)
+				im.PushStyleColor(.Button, app.configs.button_color)
+				for path in app.recent {
+					if centered_button(strings.clone_to_cstring(filepath.stem(path),context.temp_allocator)) {
+                        load_image(app.renderer,path)
+                    }
+				}
+				im.PopStyleColor(3)
+			}
+			im.EndChild()
+		}
+
+		im.PopStyleColor()
 		im.End()
 	}
 	im.PopStyleColor(2)

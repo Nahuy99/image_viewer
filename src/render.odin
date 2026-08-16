@@ -6,7 +6,7 @@ import im_sdlr "shared:odin-imgui/imgui_impl_sdlrenderer3"
 import sdl "vendor:sdl3"
 
 render :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
-	bg_hex := hex_string_to_u32(app.configs.bkg_color)
+	bg_hex := hex_string_to_u32(app.bkg_color)
 
 	r := u8((bg_hex >> 16) & 0xFF)
 	g := u8((bg_hex >> 8) & 0xFF)

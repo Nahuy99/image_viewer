@@ -101,11 +101,10 @@ handle_input :: proc(renderer: ^sdl.Renderer, window: ^sdl.Window) {
 }
 
 handle_drop_file :: proc(path: cstring, renderer: ^sdl.Renderer) {
-	app.show_keys = false
 	spath := strings.clone_from_cstring(path, context.temp_allocator)
 	dir := os.is_dir(spath)
 	if dir do load_dir_images(renderer, spath)
-    else do load_image(renderer, spath)
+	else do load_image(renderer, spath)
 }
 
 handle_zoom :: proc(event: sdl.MouseWheelEvent) {
@@ -134,6 +133,7 @@ get_file_info :: proc(path: string, image: ^Image) -> Image_Info {
 	file, err := os.stat(path, context.temp_allocator)
 	// size
 	file_size_str: string
+
 	if err == nil {
 		if file.size < 1024 * 1024 {
 			file_size_str = fmt.tprintf("%dKb", file.size / 1024)
@@ -159,7 +159,7 @@ get_file_info :: proc(path: string, image: ^Image) -> Image_Info {
 
 	info.name = strings.clone_to_cstring(file_stem, context.allocator)
 
-	//dates
+	//date
 	year, month, day := time.date(file.modification_time)
 	hour, min, sec := time.clock_from_time(file.modification_time)
 
@@ -187,6 +187,7 @@ get_file_info :: proc(path: string, image: ^Image) -> Image_Info {
 	)
 
 	abreviated_name: cstring
+	was_allocated: bool
 	if len(file_stem) > max_file_name {
 		abreviated_name = fmt.caprintf(
 			"%s...%s%s",
@@ -194,11 +195,15 @@ get_file_info :: proc(path: string, image: ^Image) -> Image_Info {
 			file_stem[len(file_stem) - 3:],
 			file_extention,
 		)
+        was_allocated = true
 	} else {
 		abreviated_name = info.name
 	}
-
 	info.handle = fmt.caprintf("%s  %s  %s", info.size, abreviated_name, info.resolution)
+    if was_allocated {
+        delete(abreviated_name)
+    }
+	info.full_path = fmt.aprint(path)
 	app.should_redraw = true
 	return info
 }

@@ -23,11 +23,13 @@ App :: struct {
 	zoom_level:          f32,
 	zoom_text:           string,
 	images:              [dynamic]Image,
+	recent:              [dynamic]string,
 	current_image:       int,
 	show_config:         bool,
 	show_details:        bool,
 	show_keys:           bool,
 	show_side_ui:        bool,
+	bkg_color:           string,
 }
 
 Image :: struct {
@@ -45,12 +47,14 @@ Image_Info :: struct {
 	modification: cstring,
 	ext:          cstring,
 	handle:       cstring,
+	full_path:    string,
 }
 
 app: App
 
 init_app :: proc(app: ^App) {
 	app.images = make([dynamic]Image)
+	app.recent = make([dynamic]string)
 	app.zoom_level = 1.0
 	app.should_redraw = true
 	app.current_image = 0
@@ -68,7 +72,6 @@ App_Config :: struct {
 	button_color:        u32,
 	button_active_color: u32,
 	image_selected:      u32,
-	bkg_color:           string,
 }
 
 Colors_Config :: struct {
@@ -216,7 +219,7 @@ free_config_varialbes :: proc() {
 }
 
 setup_colors :: proc() {
-	app.configs.bkg_color = app.dark_mode ? app.configs.colors.bg2 : app.configs.colors.fg
+	app.bkg_color = app.dark_mode ? app.configs.colors.bg2 : app.configs.colors.fg
 	app.configs.bar_color =
 		app.dark_mode ? imgui_hex_string_to_u32(app.configs.colors.frost) : imgui_hex_string_to_u32(app.configs.ui.ui_bar_color)
 	app.configs.text_color =
@@ -231,4 +234,3 @@ setup_colors :: proc() {
 	app.configs.image_selected =
 		app.dark_mode ? imgui_hex_string_to_u32("223b46") : imgui_hex_string_to_u32("532929")
 }
-

@@ -14,6 +14,7 @@ import sdl "vendor:sdl3"
 import sdli "vendor:sdl3/image"
 
 tracking_alloc: mem.Tracking_Allocator
+MAX_RECENT :: 10
 
 main :: proc() {
 
@@ -28,6 +29,8 @@ main :: proc() {
 	app.dark_mode = app.configs.ui.dark_mode
 	setup_colors()
 	init_app(&app)
+
+	load_recently_open()
 
 	ok := sdl.Init({.VIDEO, .EVENTS})
 	if !ok {
@@ -78,6 +81,7 @@ main :: proc() {
 		}
 	}
 	save_config_file()
+	save_recently_open()
 	quit()
 
 	if len(tracking_alloc.allocation_map) > 0 {
@@ -105,10 +109,13 @@ quit :: proc() {
 		if img.info.size != "" do delete(img.info.size)
 		if img.info.handle != "" do delete(img.info.handle)
 		if img.info.created != "" do delete(img.info.created)
+		if img.info.full_path != "" do delete(img.info.full_path)
 		if img.info.resolution != "" do delete(img.info.resolution)
 		if img.info.modification != "" do delete(img.info.modification)
 	}
 
+	for s in app.recent do delete(s)
+	delete(app.recent)
 	delete(app.images)
 	delete(keybidings)
 
@@ -141,11 +148,13 @@ load_dir_images :: proc(renderer: ^sdl.Renderer, path: string) {
 	for file in files {
 		load_image(renderer, file.fullpath)
 	}
-    app.current_image = 0
+	app.current_image = 0
 }
 
 load_image :: proc(renderer: ^sdl.Renderer, path: string) {
+	app.show_keys = false
 	file_stem := filepath.stem(filepath.base(path))
+
 	for image in app.images {
 		if string(image.info.name) == file_stem {
 			set_current_image(image.index)
@@ -181,7 +190,21 @@ load_image :: proc(renderer: ^sdl.Renderer, path: string) {
 	image.info = get_file_info(path, &image)
 
 	append(&app.images, image)
+	add_recent(image.info.full_path)
 	app.current_image = len(app.images) - 1
+}
+
+add_recent :: proc(path: string) {
+	for r in app.recent {
+		if r == path {
+			return
+		}
+	}
+	if len(app.recent) >= MAX_RECENT {
+		oldest := pop_front(&app.recent)
+		delete(oldest)
+	}
+	append(&app.recent, strings.clone(path))
 }
 
 calculate_display_size_with_zoom :: proc() -> Vec2 {
@@ -222,6 +245,7 @@ load_config_file :: proc() {
 
 save_config_file :: proc() {
 	path := app.config_file_path
+	defer delete(path)
 
 	opt := json.Marshal_Options {
 		pretty = true,
@@ -237,6 +261,51 @@ save_config_file :: proc() {
 	ok := os.write_entire_file(path, data)
 	if ok != nil {
 		fmt.println("Error saving config file: ", ok)
+	}
+}
+
+load_recently_open :: proc() {
+	path, _ := filepath.join({app.base_path, "recent_files.json"}, context.allocator)
+	defer delete(path)
+	data, err := os.read_entire_file(path, context.allocator)
+
+	if err != nil {
+		fmt.println("Error while loading recent.json: ", err)
+		return
+	}
+	defer delete(data)
+
+	temp: [dynamic]string
+	json_err := json.unmarshal(data, &temp)
+	if json_err != nil {
+		fmt.println("Error parsing recent.json: ", json_err)
+		return
+	}
+	defer delete(temp)
+
+	for s in temp {
+		append(&app.recent, strings.clone(s))
+		delete(s)
+	}
+}
+
+save_recently_open :: proc() {
+	path, _ := filepath.join({app.base_path, "recent_files.json"}, context.allocator)
+
+	opt := json.Marshal_Options {
+		pretty = true,
+	}
+
+	data, err := json.marshal(app.recent, opt, context.allocator)
+	if err != nil {
+		fmt.println("Error marshaling recently open file: ", err)
+		return
+	}
+	defer delete(data)
+
+	ok := os.write_entire_file(path, data)
+	if ok != nil {
+		fmt.println("Error saving recently open file: ", ok)
 	}
 }
 
